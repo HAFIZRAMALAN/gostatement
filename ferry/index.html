@@ -27,7 +27,7 @@ h1{font-size:20px;font-weight:600;letter-spacing:-.01em;margin:0 0 4px}h2{font-s
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:16px}
 .grid{display:grid;gap:12px}.g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
 .kpi .l{color:var(--mute);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}.kpi .v{font-size:22px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}.kpi .s{font-size:12px;color:var(--mute);margin-top:2px}
-.btn{background:var(--pri);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}.btn:hover{filter:brightness(1.08)}.btn:disabled{opacity:.5;cursor:default}
+.btn{background:var(--pri);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}.btn:hover{filter:brightness(1.08)}.btn:disabled{opacity:.5;cursor:default}
 .btn.ghost{background:transparent;color:var(--pri);border:1px solid var(--line)}.btn.sm{padding:5px 10px;font-size:12px}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 input[type=text],input[type=number],input[type=date],input[type=month],input[type=email],input[type=password],select{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0}
@@ -63,6 +63,41 @@ body.embed .brand{padding:0 14px 0 0;margin-right:4px;border-right:1px solid var
 body.embed .side-foot{margin:0 0 0 auto;display:flex;gap:10px;align-items:center;padding:0}
 body.embed .side-foot>div:last-child{display:none}
 body.embed main{padding:12px 4px 60px}body.embed{background:transparent}
+
+/* ---------- Daily summary (dashboard) ---------- */
+.day-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.day-head h2{margin:0 0 2px}.day-head .sub{margin:0;font-size:13px}
+.day-ctl{display:flex;gap:6px;align-items:center}
+.day-ctl .ib{width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--line);background:var(--card);border-radius:8px;cursor:pointer;color:var(--ink)}
+.day-ctl .ib:hover{background:var(--head)}.day-ctl .ib:disabled{opacity:.4;cursor:default}
+.day-ctl input[type=date]{height:34px}
+.day-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:14px}
+.day-kpis>div{background:var(--card);padding:12px 14px}
+.day-kpis .l{font-size:12px;color:var(--mute);font-weight:600}
+.day-kpis .v{font-size:20px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.day-kpis .d{font-size:12px;margin-top:2px;color:var(--mute);font-variant-numeric:tabular-nums}
+.up{color:var(--ok)}.down{color:var(--bad)}
+.day-split td,.day-split th{position:static}.day-split td:nth-child(2),.day-split th:nth-child(2){text-align:right}
+.day-split tr.sum td{font-weight:700;border-bottom:0}
+.day-chart{display:flex;align-items:flex-end;gap:4px;height:96px;margin:16px 0 4px;padding-top:6px}
+.day-chart button{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;gap:4px;background:none;border:0;padding:0;cursor:pointer}
+.day-chart .bar{background:var(--line);border-radius:3px 3px 0 0;min-height:2px;transition:background .12s}
+.day-chart button:hover .bar{background:var(--mute)}
+.day-chart button.on .bar{background:var(--pri)}
+.day-chart .lb{font-size:10px;color:var(--mute);text-align:center;line-height:1}
+.day-chart button.on .lb{color:var(--pri);font-weight:700}
+.day-foot{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12.5px;color:var(--mute);border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+.day-foot b{color:var(--ink);font-variant-numeric:tabular-nums}
+@media(max-width:700px){
+  .day-kpis{grid-template-columns:1fr 1fr}
+  .day-split .opt{display:none}
+  .g4{grid-template-columns:1fr 1fr}.g4 .kpi .v{font-size:18px}
+  .top .row{width:100%}.top .row select{flex:1}
+  body.embed aside{gap:8px}
+  body.embed .brand{border-right:0;padding:0}body.embed .brand small{display:none}
+  body.embed .nav{order:3;width:100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  body.embed .nav button{white-space:nowrap}
+}
 
 /* ---------- INVOICE (screen + print) ---------- */
 #invoiceHost{background:#e4e7eb;padding:20px;border-radius:12px}
@@ -521,12 +556,60 @@ function monthPicker(){const m=monthsAvail();if(!m.includes(UI.month))m.push(UI.
 function wireMonth(){const s=$('#selMonth');if(s)s.onchange=()=>{UI.month=s.value;render()}}
 function monthSum(station,ym){return sumCalc(rowsFor(station,ym+'-01',ym+'-31'))}
 
+/* ---------- daily summary ---------- */
+function daySum(iso){const per={};for(const s of SK)per[s]=sumCalc(rowsFor(s,iso,iso));return{per,all:sumCalc(SK.map(s=>per[s])),has:SK.filter(s=>DATA[keyOf(s,iso)])}}
+function deltaHtml(cur,prev,label){
+  if(!prev)return `<span>${label}: —</span>`;
+  const p=(cur-prev)/Math.abs(prev)*100;const cls=p>0.05?'up':p<-0.05?'down':'';
+  return `<span class="${cls}">${p>0.05?'▲':p<-0.05?'▼':''} ${Math.abs(p).toFixed(1)}%</span> <span>${label}</span>`;
+}
+function daySummaryHtml(){
+  const ds=allDates();if(!ds.length)return '';
+  if(!UI.dayPicked||!UI.day)UI.day=ds[ds.length-1]; // follow the newest day until someone picks one
+  const iso=UI.day,D=daySum(iso),P=daySum(addDays(iso,-1)),W=daySum(addDays(iso,-7));
+  const wd=DOWN[dow(iso)];
+  const status=!D.has.length?'<span class="pill warn">No data for this day</span>':D.has.length<SK.length?`<span class="pill warn">${STATIONS[D.has[0]].name} only</span>`:'<span class="pill ok">Both stations in</span>';
+  const kp=(l,v,cur,pv,wv)=>`<div><div class="l">${l}</div><div class="v">${v}</div><div class="d">${deltaHtml(cur,pv,'vs yesterday')}</div><div class="d">${deltaHtml(cur,wv,'vs last '+wd.slice(0,3))}</div></div>`;
+  const A=D.all;
+  const row=(name,S,cls)=>`<tr class="${cls||''}"><td>${name}</td><td>${fmtN(S.t)}</td><td class="opt">${fmt(S.a)}</td><td>${fmt(S.C)}</td><td class="opt">${fmtN(S.u)}</td><td class="opt">${fmt(S.charges)}</td><td>${fmt(S.M)}</td></tr>`;
+  // last 14 days ending on the selected day
+  const days=[];for(let i=13;i>=0;i--)days.push(addDays(iso,-i));
+  const vals=days.map(d=>daySum(d).all.C),mx=Math.max(...vals,1);
+  const chart=days.map((d,i)=>`<button data-day="${d}" class="${d===iso?'on':''}" title="${DOWN[dow(d)].slice(0,3)} ${dmy(d)} · RM ${fmt(vals[i])}"><div class="bar" style="height:${Math.max(2,vals[i]/mx*76)}px"></div><div class="lb">${+d.slice(8)}</div></button>`).join('');
+  // month to date
+  const ym=monthOf(iso),mtd=sumCalc(SK.map(s=>sumCalc(rowsFor(s,ym+'-01',iso))));
+  const mDays=ds.filter(d=>d>=ym+'-01'&&d<=iso);const avg=mDays.length?r2(mtd.C/mDays.length):0;
+  let best=null;for(const d of mDays){const c=daySum(d).all.C;if(!best||c>best.c)best={d,c}}
+  return `<div class="card">
+  <div class="day-head"><div><h2>Daily summary</h2><p class="sub">${wd}, ${dmy(iso)} &nbsp;${status}</p></div>
+   <div class="day-ctl"><button class="ib" id="dayPrev" title="Previous day" aria-label="Previous day"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+   <input type="date" id="dayPick" value="${iso}" min="${ds[0]}" max="${todayISO()}">
+   <button class="ib" id="dayNext" title="Next day" aria-label="Next day" ${iso>=todayISO()?'disabled':''}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+   <button class="btn ghost sm" id="dayLatest" ${iso===ds[ds.length-1]?'disabled':''}>Latest</button></div></div>
+  <div class="day-kpis">${kp('Online collection',fmt(A.C),A.C,P.all.C,W.all.C)}${kp('Online tickets',fmtN(A.t),A.t,P.all.t,W.all.t)}${kp('NSS charges',fmt(A.charges),A.charges,P.all.charges,W.all.charges)}${kp('Net payable',fmt(A.M),A.M,P.all.M,W.all.M)}</div>
+  <div class="tw" style="max-height:none"><table class="day-split"><thead><tr><th>Station</th><th>Tickets</th><th class="opt">Sales</th><th>Collection</th><th class="opt">Agent T.</th><th class="opt">Charges</th><th>Net payable</th></tr></thead><tbody>
+   ${row(`<span class="mer">MERSING</span>`,D.per.MERSING)}${row(`<span class="tg">TANJUNG GEMOK</span>`,D.per.TG_GEMOK)}${row('Total',A,'sum')}</tbody></table></div>
+  <div class="day-chart" role="group" aria-label="Online collection, last 14 days">${chart}</div>
+  <div class="day-foot"><span>${monthLabel(ym)} to date: <b>RM ${fmt(mtd.C)}</b> collection</span><span><b>${fmtN(mtd.t)}</b> tickets</span><span>net <b>RM ${fmt(mtd.M)}</b></span><span>avg/day <b>RM ${fmt(avg)}</b></span>${best?`<span>best day <b>${dmy(best.d)}</b> (RM ${fmt(best.c)})</span>`:''}</div>
+  </div>`;
+}
+function wireDash(){
+  const set=(d,pick=true)=>{if(!d)return;UI.day=d;UI.dayPicked=pick;UI.month=monthOf(d);render()};
+  const p=$('#dayPick');if(p)p.onchange=()=>set(p.value);
+  $('#dayPrev')&&($('#dayPrev').onclick=()=>set(addDays(UI.day,-1)));
+  $('#dayNext')&&($('#dayNext').onclick=()=>set(addDays(UI.day,1)));
+  $('#dayLatest')&&($('#dayLatest').onclick=()=>{const ds=allDates();set(ds[ds.length-1],false)});
+  document.querySelectorAll('.day-chart [data-day]').forEach(b=>b.onclick=()=>set(b.dataset.day));
+}
+
 function pageDash(){
   const ym=UI.month,M=monthSum('MERSING',ym),T=monthSum('TG_GEMOK',ym),all=sumCalc([M,T]);
   const kpi=(l,v,s)=>`<div class="card kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s||''}</div></div>`;
   const stCard=(k,S)=>`<div class="card"><h2 class="${STATIONS[k].cls}">${STATIONS[k].name}</h2><div class="grid g2" style="gap:8px">
    ${[['Tickets (online)',fmtN(S.t)],['Online collection',fmt(S.C)],['Commission + SST',fmt(r2(S.D+S.E))],['MDR + SST',fmt(r2(S.F+S.G))],['Agent tickets',fmtN(S.u)],['Agent + SST',fmt(S.L)],['NSS total charges',fmt(S.charges)],['Net payable',fmt(S.M)]].map(([a,b])=>`<div><div class="sub" style="margin:0;font-size:12px">${a}</div><b>${b}</b></div>`).join('')}</div></div>`;
   return `<div class="top"><div><h1>Dashboard</h1><p class="sub">${monthLabel(ym)} · all amounts in RM</p></div><div class="row">${monthPicker()}<button class="btn" data-go="up"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Upload Excel</button><button class="btn ghost" data-go="inv">Make invoice</button></div></div>
+  ${daySummaryHtml()}
+  <h2 style="margin:22px 0 10px">Month overview · ${monthLabel(ym)}</h2>
   <div class="grid g4">${kpi('Online collection',fmt(all.C),`sales ${fmt(all.a)} + 3% fee ${fmt(all.B)}`)}${kpi('Online tickets',fmtN(all.t),`+ ${fmtN(all.u)} agent tickets`)}${kpi('NSS invoice total',fmt(all.charges),'commission + MDR + agent, incl. SST')}${kpi('Net payable to operators',fmt(all.M),'after all deductions')}</div>
   <div class="grid g2">${stCard('MERSING',M)}${stCard('TG_GEMOK',T)}</div>
   ${allDates().length?'':'<div class="card"><b>No data yet.</b> Go to <b>Upload Excel</b> and drop the SUMMARY SALES file — it will read, save and be ready for invoices straight away.</div>'}`;
@@ -727,7 +810,7 @@ function render(){
   m.innerHTML={dash:pageDash,data:pageData,up:pageUp,und:pageUnd,inv:pageInv,set:pageSet}[UI.page]();
   wireMonth();
   m.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
-  ({data:wireData,up:wireUp,und:wireUnd,inv:wireInv,set:wireSet}[UI.page]||(()=>{}))();
+  ({dash:wireDash,data:wireData,up:wireUp,und:wireUnd,inv:wireInv,set:wireSet}[UI.page]||(()=>{}))();
   setSync();
 }
 $('#nav').onclick=e=>{const b=e.target.closest('button');if(b)go(b.dataset.p)};
