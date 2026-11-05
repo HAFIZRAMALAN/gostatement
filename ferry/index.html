@@ -250,12 +250,41 @@ async function cloudPush(keys){
     if(!data||data.length<chunk.length){toast('Cloud only saved '+(data?data.length:0)+' of '+chunk.length+' rows — check admin access',7000);return{ok:false,saved:saved+(data?data.length:0)}}
     saved+=data.length;chunk.forEach(r=>DIRTY.delete(keyOf(r.station,r.entry_date)));
   }
-  persistLocal();setSync();return{ok:true,saved};
+  persistLocal();setSync();livePing();return{ok:true,saved};
 }
 async function cloudDelete(key){
   if(!sb||!UI.session)return true;const[s,d]=key.split('|');
   const{data,error}=await sb.from('ferry_daily').delete().eq('station',s).eq('entry_date',d).select('station');
-  if(error){toast('Cloud delete failed: '+error.message,6000);return false}return true;
+  if(error){toast('Cloud delete failed: '+error.message,6000);return false}livePing();return true;
+}
+
+/* ---------- live sync between admins ----------
+   After any successful cloud save, this page broadcasts a tiny "changed" ping
+   (no data in it). Every other open Ferry page re-pulls from Supabase, so a
+   figure keyed in on one computer shows on the others within a second or two.
+   Backup: re-pull when the tab comes back into view, and every 60s while open. */
+let FCH=null,pullT=null;
+function livePing(){try{FCH&&FCH.send({type:'broadcast',event:'changed',payload:{at:Date.now()}})}catch(e){}}
+function liveRefresh(msg){
+  clearTimeout(pullT);
+  pullT=setTimeout(async()=>{
+    if(!sb||!UI.session)return;
+    const before=JSON.stringify([DATA,UND,CFG]);
+    await cloudPull();await undPull();setSync();
+    if(JSON.stringify([DATA,UND,CFG])===before)return;
+    const a=document.activeElement;
+    // don't yank the page from under someone typing in Daily Data
+    if(!(a&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)&&$('#main').contains(a)))render();
+    toast(msg||'Updated with the latest figures',2500);
+  },700);
+}
+function startLive(){
+  if(FCH||!sb)return;
+  FCH=sb.channel('gostatement-ferry',{config:{broadcast:{self:false}}})
+    .on('broadcast',{event:'changed'},()=>liveRefresh('New figures from another admin'))
+    .subscribe();
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')liveRefresh()});
+  setInterval(()=>{if(document.visibilityState==='visible')liveRefresh()},60000);
 }
 async function cloudPull(){
   if(!sb||!UI.session)return;
@@ -275,7 +304,7 @@ async function cloudPull(){
 async function saveCfg(){
   persistLocal();
   if(sb&&UI.session){const{data,error}=await sb.from('ferry_settings').upsert({key:'config',value:CFG,updated_at:new Date().toISOString()},{onConflict:'key'}).select('key');
-    if(error||!data||!data.length)toast('Settings saved locally only: '+(error?error.message:'no access'),6000);else toast('Settings saved to cloud')}
+    if(error||!data||!data.length)toast('Settings saved locally only: '+(error?error.message:'no access'),6000);else{toast('Settings saved to cloud');livePing()}}
   else toast('Settings saved on this device (login to sync)')
 }
 async function setRecord(station,date,rec,src){
@@ -313,7 +342,7 @@ async function undPush(keys){
     if(error){toast('Undersales cloud save failed: '+error.message,7000);return{ok:false,saved}}
     if(!data||data.length<ch.length){toast('Cloud saved only '+(data?data.length:0)+' of '+ch.length+' undersales rows',7000);return{ok:false,saved}}
     saved+=data.length}
-  keys.forEach(k=>UDIRTY.delete(k));persistUnd();setSync();return{ok:true,saved};
+  keys.forEach(k=>UDIRTY.delete(k));persistUnd();setSync();livePing();return{ok:true,saved};
 }
 async function undPull(){
   if(!sb||!UI.session)return;
@@ -378,7 +407,7 @@ function initSb(){
 async function afterLogin(){
   const keys=[...DIRTY];if(keys.length){const r=await cloudPush(keys);if(r.ok)toast(`Pushed ${r.saved} offline row(s) to cloud`)}
   const uk=[...UDIRTY];if(uk.length)await undPush(uk);
-  await cloudPull();await undPull();setSync();
+  await cloudPull();await undPull();setSync();startLive();
 }
 function openAuth(){
   if(UI.session){sb.auth.signOut().then(()=>{UI.session=null;setSync();toast('Logged out')});return}
