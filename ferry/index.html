@@ -104,6 +104,7 @@ body.embed main{padding:12px 4px 60px}body.embed{background:transparent}
     <button data-p="dash" class="on">📊 Dashboard</button>
     <button data-p="data">🗓 Daily Data</button>
     <button data-p="up">⬆ Upload Excel</button>
+    <button data-p="und">📉 Undersales</button>
     <button data-p="inv">🧾 Invoices</button>
     <button data-p="set">⚙ Settings</button>
   </div>
@@ -181,9 +182,9 @@ function rowsFor(station,from,to){const out=[];for(const k in DATA){const[s,d]=k
 function allDates(){return[...new Set(Object.keys(DATA).map(k=>k.split('|')[1]))].sort()}
 
 /* ---------- persistence ---------- */
-function persistLocal(){save('gsf_data',DATA);save('gsf_dirty',[...DIRTY]);save('gsf_cfg',CFG)}
+function persistLocal(){save('gsf_data',DATA);save('gsf_dirty',[...DIRTY]);save('gsf_cfg',CFG);try{persistUnd()}catch(e){}}
 function setSync(){
-  const el=$('#syncStat');const n=DIRTY.size;
+  const el=$('#syncStat');const n=DIRTY.size+UDIRTY.size;
   if(!sb){el.innerHTML='<span class="dot bad"></span>Cloud not available';return}
   if(!UI.session){el.innerHTML='<span class="dot bad"></span>Local only — login to save to cloud'+(n?` (${n} unsynced)`:'');$('#btnAuth').textContent='Login';return}
   el.innerHTML=n?`<span class="dot"></span>${n} unsynced`:'<span class="dot ok"></span>Saved to cloud';$('#btnAuth').textContent='Logout';
@@ -232,6 +233,91 @@ async function setRecord(station,date,rec,src){
   const r=await cloudPush([k]);setSync();return r;
 }
 
+
+/* ---------- Undersales tracker ----------
+   Mirrors the "UNDERSALES TRACKER" Excel: when a settlement batch nets NEGATIVE (agent commission > online net),
+   the shortfall is an UNDERSALE owed by the operator; later positive settlements RECOVER it (FIFO). */
+let UND=load('gsf_und',[]);
+let UDIRTY=new Set(load('gsf_udirty',[]));
+const uKey=u=>[u.station,u.date,u.kind,(+u.amount).toFixed(2),u.desc||''].join('|');
+function persistUnd(){save('gsf_und',UND);save('gsf_udirty',[...UDIRTY])}
+function undLedger(station){
+  const rows=UND.filter(u=>u.station===station).slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.kind===b.kind?0:a.kind==='undersale'?-1:1));
+  let cumU=0,cumR=0;const out=[];
+  for(const r of rows){if(r.kind==='undersale')cumU=r2(cumU+ +r.amount);else cumR=r2(cumR+ +r.amount);out.push({...r,key:uKey(r),cumU,cumR,bal:r2(cumU-cumR)})}
+  out.forEach((r,i)=>{r.cleared=null;if(r.kind==='undersale'){for(let j=i;j<out.length;j++){if(out[j].kind==='recovery'&&out[j].cumR>=r.cumU-0.005){r.cleared=out[j].date;break}}}});
+  return out;
+}
+function undBalanceAt(station,date){let b=0;for(const r of undLedger(station)){if(r.date<=date)b=r.bal;else break}return b}
+function undPeriod(station,from,to){
+  const L=undLedger(station);let added=0,rec=0;
+  for(const r of L)if(r.date>=from&&r.date<=to){if(r.kind==='undersale')added=r2(added+ +r.amount);else rec=r2(rec+ +r.amount)}
+  return{added,rec,bal:undBalanceAt(station,to),any:L.length>0};
+}
+async function undPush(keys){
+  if(!sb||!UI.session||!keys.length)return{ok:false,saved:0};
+  const rows=UND.filter(u=>keys.includes(uKey(u))).map(u=>({station:u.station,entry_date:u.date,kind:u.kind,amount:+u.amount,description:u.desc||''}));
+  let saved=0;
+  for(let i=0;i<rows.length;i+=400){const ch=rows.slice(i,i+400);
+    const{data,error}=await sb.from('ferry_undersales').upsert(ch,{onConflict:'station,entry_date,kind,amount,description'}).select('station');
+    if(error){toast('Undersales cloud save failed: '+error.message,7000);return{ok:false,saved}}
+    if(!data||data.length<ch.length){toast('Cloud saved only '+(data?data.length:0)+' of '+ch.length+' undersales rows',7000);return{ok:false,saved}}
+    saved+=data.length}
+  keys.forEach(k=>UDIRTY.delete(k));persistUnd();setSync();return{ok:true,saved};
+}
+async function undPull(){
+  if(!sb||!UI.session)return;
+  const{data,error}=await sb.from('ferry_undersales').select('station,entry_date,kind,amount,description').order('entry_date').range(0,4999);
+  if(error){toast('Undersales load failed: '+error.message,6000);return}
+  const remote=data.map(r=>({station:r.station,date:r.entry_date,kind:r.kind,amount:+r.amount,desc:r.description||''}));
+  const keep=UND.filter(u=>UDIRTY.has(uKey(u)));const rk=new Set(remote.map(uKey));
+  UND=remote.concat(keep.filter(u=>!rk.has(uKey(u))));persistUnd();
+}
+async function undAdd(list,src){
+  const have=new Set(UND.map(uKey));const keys=[];let dup=0;
+  for(const u of list){const k=uKey(u);if(have.has(k)){dup++;continue}have.add(k);UND.push({station:u.station,date:u.date,kind:u.kind,amount:r2(+u.amount),desc:u.desc||''});UDIRTY.add(k);keys.push(k)}
+  persistUnd();let res={ok:true,saved:0};
+  if(UI.session&&keys.length)res=await undPush(keys);
+  return{added:keys.length,dup,cloud:UI.session?res.ok:null};
+}
+async function undDelete(key){
+  const u=UND.find(x=>uKey(x)===key);if(!u)return;
+  if(UI.session&&sb){const{error}=await sb.from('ferry_undersales').delete().match({station:u.station,entry_date:u.date,kind:u.kind,amount:+u.amount,description:u.desc||''});
+    if(error){toast('Cloud delete failed: '+error.message,6000);return}}
+  UND=UND.filter(x=>uKey(x)!==key);UDIRTY.delete(key);persistUnd();
+}
+function parseUndersalesWb(wb){
+  const out=[];
+  for(const name of wb.SheetNames){
+    const U=name.toUpperCase();const station=U.includes('MERSING')?'MERSING':(U.includes('GEMOK')||U.includes('GEMUK'))?'TG_GEMOK':null;if(!station)continue;
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true,defval:null});
+    let hr=rows.findIndex(r=>String(r[0]||'').trim().toUpperCase()==='DATE');if(hr<0)continue;
+    for(let i=hr+1;i<rows.length;i++){const r=rows[i];if(typeof r[0]!=='number'||r[0]<40000)continue;
+      const date=serialToISO(r[0]),desc=String(r[1]||'').trim();
+      if(typeof r[2]==='number'&&r[2]>0)out.push({station,date,kind:'undersale',amount:r2(r[2]),desc});
+      if(typeof r[3]==='number'&&r[3]>0)out.push({station,date,kind:'recovery',amount:r2(r[3]),desc})}
+  }
+  return out;
+}
+/* Settlement batches: Tue/Wed/Thu are settled on their own day; Fri+Sat+Sun+Mon are settled together on the Monday. */
+function batchPost(iso){const d=dow(iso);if(d===5)return addDays(iso,3);if(d===6)return addDays(iso,2);if(d===0)return addDays(iso,1);return iso}
+function batchStart(post){return dow(post)===1?addDays(post,-3):post}
+function undSuggest(station,startFrom){
+  const days=Object.keys(DATA).filter(k=>k.startsWith(station+'|')).map(k=>k.split('|')[1]).sort();
+  const batches={};for(const d of days){const p=batchPost(d);(batches[p]=batches[p]||[]).push(d)}
+  const ledgerDates=new Set(undLedger(station).map(r=>r.date));
+  const out=[];let delta=0;
+  for(const post of Object.keys(batches).sort()){
+    if(batchStart(post)<startFrom)continue;
+    if(ledgerDates.has(post))continue;
+    const cs=batches[post].map(d=>calc(DATA[keyOf(station,d)]));const S=sumCalc(cs);const net=S.M;
+    const bal=r2(undBalanceAt(station,post)+delta);
+    if(net<-0.004){const amt=r2(-net);delta=r2(delta+amt);out.push({station,date:post,kind:'undersale',amount:amt,desc:`Short: NET ${Math.max(S.H,0).toFixed(2)} - agent ${S.L.toFixed(2)}`})}
+    else if(net>0.004&&bal>0.004){const rc=r2(Math.min(bal,net));delta=r2(delta-rc);out.push({station,date:post,kind:'recovery',amount:rc,desc:'Recovered from settlement'})}
+  }
+  return out;
+}
+
 /* ---------- auth ---------- */
 function initSb(){
   try{sb=window.supabase.createClient(SB_URL,SB_KEY)}catch(e){sb=null;console.error(e)}
@@ -241,7 +327,8 @@ function initSb(){
 }
 async function afterLogin(){
   const keys=[...DIRTY];if(keys.length){const r=await cloudPush(keys);if(r.ok)toast(`Pushed ${r.saved} offline row(s) to cloud`)}
-  await cloudPull();setSync();
+  const uk=[...UDIRTY];if(uk.length)await undPush(uk);
+  await cloudPull();await undPull();setSync();
 }
 function openAuth(){
   if(UI.session){sb.auth.signOut().then(()=>{UI.session=null;setSync();toast('Logged out')});return}
@@ -343,7 +430,7 @@ function buildInvoice(station,mode,p){
   return{station,mode,p,rows,S,lines,excl,tax,incl,no:invNo(station,mode,p),dotp,stn,C,P,payout,showAnnex,R};
 }
 function invoiceHtml(v){
-  const{S,C,P,R}=v;
+  const{S,C,P,R}=v;const U=undPeriod(v.station,v.p.from,v.p.to);
   const dateTime=todayISO().split('-').reverse().join('/');
   const typeLbl={daily:'DAILY',weekly:'WEEKLY',monthly:'MONTHLY',custom:'PERIOD'}[v.mode];
   return `<section class="inv">
@@ -370,7 +457,10 @@ function invoiceHtml(v){
    <tr><td>Less: Online commission incl. SST</td><td>(${fmt(r2(S.D+S.E))})</td></tr>
    <tr><td>Less: MDR fee incl. SST</td><td>(${fmt(r2(S.F+S.G))})</td></tr>
    <tr><td>Less: Agent commission incl. SST (${fmtN(S.u)} tickets)</td><td>(${fmt(S.L)})</td></tr>
-   <tr class="g"><td>${S.M<0?'NET AMOUNT DUE TO NSS (RM) — charges exceed online collection':'NET PAYABLE TO OPERATOR (RM)'}</td><td>${fmt(Math.abs(S.M))}</td></tr></table>
+   <tr class="g"><td>${U.any&&(U.added||U.rec)?'NET SETTLEMENT (CALCULATED) (RM)':S.M<0?'NET AMOUNT DUE TO NSS (RM) — charges exceed online collection':'NET PAYABLE TO OPERATOR (RM)'}</td><td>${U.any&&(U.added||U.rec)?fmt(S.M):fmt(Math.abs(S.M))}</td></tr>
+   ${U.any&&(U.added||U.rec)?`${U.added?`<tr><td>Add: shortfall carried to Undersales Tracker</td><td>${fmt(U.added)}</td></tr>`:''}${U.rec?`<tr><td>Less: undersales recovered from this settlement</td><td>(${fmt(U.rec)})</td></tr>`:''}<tr class="g"><td>NET PAYOUT TO OPERATOR (RM)</td><td>${fmt(r2(S.M+U.added-U.rec))}</td></tr>`:''}
+  </table>
+   ${U.any&&U.bal>0.004?`<div style="margin-top:4px;font-size:10px"><b>Undersales outstanding as at ${dmy(v.p.to)}: RM ${fmt(U.bal)}</b> — to be recovered from future settlements.</div>`:''}
    <div style="margin-top:6px;font-size:10px"><b>Payment to:</b> ${esc(C.payee)} · ${esc(C.buyer)} · ${esc(C.bank)}: ${esc(C.acc)}</div></div>
   <div class="notes"><b>Notes :</b><br>1. Charges above are deducted from online collection; net payable is paid via bank transfer to the operator account stated.<br>
    &nbsp;&nbsp;&nbsp;Account Name : ${esc(P.bankHolder)} &nbsp;|&nbsp; Banker Name : ${esc(P.bankName)} &nbsp;|&nbsp; Account Number : ${esc(P.bankAcc)} (for any amount payable to NSS)<br>
@@ -551,8 +641,54 @@ function pageSet(){
 function wireSet(){
   document.querySelectorAll('[data-cfg]').forEach(i=>i.onchange=()=>{const path=i.dataset.cfg.split('.');let o=CFG;for(let k=0;k<path.length-1;k++)o=o[path[k]];const last=path[path.length-1];o[last]=i.type==='number'?+i.value:i.value});
   $('#btnSaveCfg').onclick=saveCfg;
-  $('#btnExp').onclick=()=>{const blob=new Blob([JSON.stringify({data:DATA,cfg:CFG},null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ferry-backup-${todayISO()}.json`;a.click()};
-  $('#fileRestore').onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());if(j.data){Object.assign(DATA,j.data);Object.keys(j.data).forEach(k=>DIRTY.add(k))}if(j.cfg)CFG=deepMerge(JSON.parse(JSON.stringify(DEF_CFG)),j.cfg);persistLocal();if(UI.session)await cloudPush([...DIRTY]);toast('Backup restored');render()}catch(err){toast('Bad backup file')}};
+  $('#btnExp').onclick=()=>{const blob=new Blob([JSON.stringify({data:DATA,cfg:CFG,und:UND},null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ferry-backup-${todayISO()}.json`;a.click()};
+  $('#fileRestore').onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());if(j.data){Object.assign(DATA,j.data);Object.keys(j.data).forEach(k=>DIRTY.add(k))}if(j.und){const have=new Set(UND.map(uKey));for(const u of j.und)if(!have.has(uKey(u))){UND.push(u);UDIRTY.add(uKey(u))}}if(j.cfg)CFG=deepMerge(JSON.parse(JSON.stringify(DEF_CFG)),j.cfg);persistLocal();if(UI.session)await cloudPush([...DIRTY]);toast('Backup restored');render()}catch(err){toast('Bad backup file')}};
+}
+
+
+function pageUnd(){
+  const start=UI.undStart||'2026-10-06';
+  const card=st=>{const L=undLedger(st),bal=L.length?L[L.length-1].bal:0;
+    return `<div class="card"><div class="row" style="justify-content:space-between"><h2 class="${STATIONS[st].cls}" style="margin:0">UNDERSALES TRACKER — ${STATIONS[st].name}</h2><div style="text-align:right"><div class="sub" style="margin:0;font-size:12px">Outstanding balance (RM)</div><b style="font-size:22px;${bal>0.004?'color:var(--bad)':''}">${fmt(bal)}</b></div></div>
+    <div class="tw" style="margin-top:10px;max-height:46vh"><table><thead><tr><th>Date</th><th>Description</th><th>Undersale (RM)</th><th>Recovered (RM)</th><th>Balance (RM)</th><th>Date cleared</th><th></th></tr></thead><tbody>
+    ${L.map(r=>`<tr><td>${dmy(r.date)}</td><td style="text-align:left;white-space:normal">${esc(r.desc)}</td><td>${r.kind==='undersale'?fmt(r.amount):''}</td><td>${r.kind==='recovery'?fmt(r.amount):''}</td><td>${fmt(r.bal)}</td><td>${r.cleared?dmy(r.cleared):''}</td><td><button class="btn ghost sm" data-udel="${esc(r.key)}">✕</button></td></tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--mute)">No entries yet</td></tr>'}</tbody></table></div>
+    <div class="row" style="margin-top:10px;align-items:flex-end"><label class="f">Date<input type="date" id="ua_d_${st}" value="${todayISO()}"></label><label class="f">Type<select id="ua_k_${st}"><option value="undersale">Undersale</option><option value="recovery">Recovered</option></select></label><label class="f">Amount (RM)<input type="number" step="0.01" min="0" id="ua_a_${st}" style="width:110px"></label><label class="f" style="flex:1;min-width:160px">Description<input type="text" id="ua_t_${st}" placeholder="e.g. Agent under-charged: booking ..."></label><button class="btn" data-uadd="${st}">Add</button></div></div>`};
+  return `<div class="top"><div><h1>Undersales</h1><p class="sub">When a settlement nets <b>negative</b> (agent commission &gt; online net), the shortfall is an undersale. Later positive settlements recover it. Same layout as your UNDERSALES Excel.</p></div>
+   <div class="row"><label class="btn ghost" style="cursor:pointer">⬆ Import UNDERSALES Excel<input type="file" id="undFile" accept=".xlsx,.xls" class="hide"></label><button class="btn ghost" id="undExport">⬇ Export Excel</button></div></div>
+  <div class="card"><h2>Suggest from daily data</h2><p class="sub" style="margin:0 0 8px">Tue/Wed/Thu settle on their own day; Fri+Sat+Sun+Mon settle together on Monday (this reproduces your Mersing Excel exactly). Days already in the tracker are skipped. Review before adding.</p>
+   <div class="row" style="align-items:flex-end"><label class="f">Track from (first batch day)<input type="date" id="undStart" value="${start}"></label><button class="btn" id="undSug">Find undersales / recoveries</button></div><div id="undSugOut"></div></div>
+  ${card('MERSING')}${card('TG_GEMOK')}`;
+}
+function wireUnd(){
+  const q=x=>document.querySelector(x);
+  q('#undStart').onchange=e=>UI.undStart=e.target.value;
+  q('#undFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+    try{const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});const list=parseUndersalesWb(wb);
+      if(!list.length)return toast('No tracker rows found (need sheets named MERSING / TANJUNG GEMOK with Date column).',7000);
+      const r=await undAdd(list,'excel');toast(`Imported ${r.added} row(s)${r.dup?`, ${r.dup} already existed`:''}${r.cloud===true?' · SAVED TO CLOUD ✔':r.cloud===false?' · cloud save FAILED':' · this device only (login to save to cloud)'}`,7000);render()}
+    catch(err){console.error(err);toast('Could not read file: '+err.message,6000)}};
+  q('#undSug').onclick=()=>{
+    const start=q('#undStart').value||'2026-10-06';UI.undStart=start;
+    const sug=SK.flatMap(s=>undSuggest(s,start));UI.undSugList=sug;
+    const out=q('#undSugOut');
+    if(!sug.length){out.innerHTML='<p class="sub" style="margin-top:10px">Nothing new to add from '+dmy(start)+' — tracker already matches the daily data.</p>';return}
+    out.innerHTML=`<div class="tw" style="margin-top:10px;max-height:40vh"><table><thead><tr><th></th><th>Station</th><th>Date</th><th>Type</th><th>Amount</th><th>Description</th></tr></thead><tbody>${sug.map((u,i)=>`<tr><td><input type="checkbox" data-sg="${i}" checked></td><td>${STATIONS[u.station].name}</td><td>${dmy(u.date)}</td><td>${u.kind==='undersale'?'Undersale':'Recovered'}</td><td>${fmt(u.amount)}</td><td style="text-align:left">${esc(u.desc)}</td></tr>`).join('')}</tbody></table></div><div class="row" style="margin-top:8px"><button class="btn" id="undSugAdd">Add selected to tracker</button></div>`;
+    q('#undSugAdd').onclick=async()=>{const pick=[...document.querySelectorAll('[data-sg]')].filter(c=>c.checked).map(c=>UI.undSugList[+c.dataset.sg]);
+      const r=await undAdd(pick,'suggest');toast(`Added ${r.added} row(s)${r.cloud===true?' · SAVED TO CLOUD ✔':r.cloud===false?' · cloud save FAILED':' · this device only'}`,5000);render()};
+  };
+  document.querySelectorAll('[data-uadd]').forEach(b=>b.onclick=async()=>{const st=b.dataset.uadd;
+    const date=q('#ua_d_'+st).value,kind=q('#ua_k_'+st).value,amount=+q('#ua_a_'+st).value,desc=q('#ua_t_'+st).value.trim();
+    if(!date||!(amount>0))return toast('Enter a date and an amount above 0');
+    const r=await undAdd([{station:st,date,kind,amount,desc:desc||(kind==='recovery'?'Recovered from settlement':'Undersale')}],'manual');
+    toast(r.dup?'That exact entry already exists':(r.cloud===false?'Saved locally — cloud save failed':'Added'+(r.cloud?' ✔':'')),3500);render()});
+  document.querySelectorAll('[data-udel]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this tracker row?'))return;await undDelete(b.dataset.udel);render()});
+  q('#undExport').onclick=()=>{
+    const wb=XLSX.utils.book_new();
+    for(const st of SK){const L=undLedger(st);const bal=L.length?L[L.length-1].bal:0;
+      const aoa=[['UNDERSALES TRACKER - '+STATIONS[st].name],['Outstanding balance (RM):','',bal],[],['Date','Description','Undersale (RM)','Recovered (RM)','Balance (RM)','Date Cleared'],
+        ...L.map(r=>[dmy(r.date),r.desc,r.kind==='undersale'?r.amount:'',r.kind==='recovery'?r.amount:'',r.bal,r.cleared?dmy(r.cleared):''])];
+      const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:12},{wch:46},{wch:15},{wch:15},{wch:14},{wch:14}];XLSX.utils.book_append_sheet(wb,ws,STATIONS[st].name)}
+    XLSX.writeFile(wb,`UNDERSALES MERSING TG ${todayISO()}.xlsx`)};
 }
 
 /* ---------- shell ---------- */
@@ -561,10 +697,10 @@ function render(){
   ensureMonth();
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===UI.page));
   const m=$('#main');
-  m.innerHTML={dash:pageDash,data:pageData,up:pageUp,inv:pageInv,set:pageSet}[UI.page]();
+  m.innerHTML={dash:pageDash,data:pageData,up:pageUp,und:pageUnd,inv:pageInv,set:pageSet}[UI.page]();
   wireMonth();
   m.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
-  ({data:wireData,up:wireUp,inv:wireInv,set:wireSet}[UI.page]||(()=>{}))();
+  ({data:wireData,up:wireUp,und:wireUnd,inv:wireInv,set:wireSet}[UI.page]||(()=>{}))();
   setSync();
 }
 $('#nav').onclick=e=>{const b=e.target.closest('button');if(b)go(b.dataset.p)};
