@@ -5,25 +5,26 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>GoStatement Ferry</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b4f8a'/%3E%3Cpath d='M6 19h20l-3 5H9zM10 19v-5h12v5M13 14v-3h6v3' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
-:root{--bg:#f3f6fa;--card:#fff;--ink:#14202e;--mute:#5d6b7c;--line:#dfe6ee;--pri:#0b4f8a;--pri2:#e6f0fa;--ok:#13795b;--okbg:#e3f5ee;--warn:#9a5b00;--warnbg:#fff3dc;--bad:#b3261e;--badbg:#fde8e6;--mer:#0b6bcb;--tg:#7a3fc4}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0e1620;--card:#16212e;--ink:#e6edf5;--mute:#9aa9ba;--line:#273547;--pri:#5aa7ef;--pri2:#173049;--ok:#4cc9a0;--okbg:#12342b;--warn:#f0b34d;--warnbg:#3a2c10;--bad:#ff8a80;--badbg:#3d1b18;--mer:#5aa7ef;--tg:#b78cf0}}
-*{box-sizing:border-box}html,body{margin:0}body{background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+:root{--bg:#F8F7F4;--card:#fff;--ink:#1F2328;--mute:#666460;--line:#E5E0D5;--pri:#1A56DB;--pri2:#EEF3FF;--head:#FAF9F6;--ok:#13795b;--okbg:#e3f5ee;--warn:#9a5b00;--warnbg:#fff3dc;--bad:#b3261e;--badbg:#fde8e6;--mer:#0b6bcb;--tg:#7a3fc4}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1117;--card:#161b22;--ink:#e6edf3;--mute:#9198a1;--line:#30363d;--pri:#4493f8;--pri2:#132a4d;--head:#1c2128;--ok:#4cc9a0;--okbg:#12342b;--warn:#f0b34d;--warnbg:#3a2c10;--bad:#ff8a80;--badbg:#3d1b18;--mer:#5aa7ef;--tg:#b78cf0}}
+*{box-sizing:border-box}html,body{margin:0}body{background:var(--bg);color:var(--ink);font:14px/1.5 Inter,-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
 button,input,select{font:inherit;color:inherit}
 .app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
 aside{background:var(--card);border-right:1px solid var(--line);padding:16px 12px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px}
 .brand{display:flex;gap:10px;align-items:center;padding:4px 8px 14px;font-weight:700;font-size:15px}
-.brand i{width:30px;height:30px;border-radius:8px;background:var(--pri);display:grid;place-items:center;color:#fff;font-style:normal}
+.brand i{width:30px;height:30px;border-radius:8px;background:var(--pri);display:grid;place-items:center;color:#fff;font-style:normal;flex-shrink:0}.brand i svg{width:17px;height:17px}
 .brand small{display:block;font-weight:500;color:var(--mute);font-size:11px}
-.nav button{display:flex;width:100%;gap:10px;align-items:center;text-align:left;background:none;border:0;padding:9px 10px;border-radius:8px;cursor:pointer;color:var(--mute);font-weight:600}
-.nav button:hover{background:var(--pri2)}.nav button.on{background:var(--pri2);color:var(--pri)}
+.nav button{display:flex;width:100%;gap:9px;align-items:center;text-align:left;background:none;border:0;padding:8px 11px;border-radius:8px;cursor:pointer;color:var(--mute);font-weight:600;font-size:13px}.nav button svg{flex-shrink:0}
+.nav button:hover{background:var(--head);color:var(--ink)}.nav button.on{background:var(--pri2);color:var(--pri)}
 .side-foot{margin-top:auto;font-size:12px;color:var(--mute);padding:8px}
 main{padding:20px 24px 60px;max-width:1500px;width:100%}
-h1{font-size:20px;margin:0 0 4px}h2{font-size:15px;margin:0 0 10px}
+h1{font-size:20px;font-weight:600;letter-spacing:-.01em;margin:0 0 4px}h2{font-size:15px;font-weight:600;margin:0 0 12px}
 .sub{color:var(--mute);margin:0 0 16px}
 .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:16px}
 .grid{display:grid;gap:12px}.g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
 .kpi .l{color:var(--mute);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}.kpi .v{font-size:22px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}.kpi .s{font-size:12px;color:var(--mute);margin-top:2px}
 .btn{background:var(--pri);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}.btn:hover{filter:brightness(1.08)}.btn:disabled{opacity:.5;cursor:default}
@@ -34,9 +35,9 @@ label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mu
 .tw{overflow:auto;border:1px solid var(--line);border-radius:10px;max-height:70vh}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 th,td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;font-size:13px}
-th{background:var(--pri2);position:sticky;top:0;z-index:1;font-size:12px}
+th{background:var(--head);position:sticky;top:0;z-index:1;font-size:11.5px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.03em}
 td:first-child,th:first-child,td:nth-child(2),th:nth-child(2){text-align:left}
-tr.tot td{font-weight:700;background:var(--pri2);position:sticky;bottom:0}
+tr.tot td{font-weight:700;background:var(--head);position:sticky;bottom:0}
 tr.we td:first-child,tr.we td:nth-child(2){color:var(--bad)}
 td input{width:78px;text-align:right;padding:3px 6px;border-radius:6px}
 td.neg{color:var(--bad)}
@@ -57,36 +58,50 @@ td.neg{color:var(--bad)}
 
 /* embedded inside GoStatement: top tab bar instead of side bar */
 body.embed .app{grid-template-columns:1fr}
-body.embed aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;border-right:0;border:1px solid var(--line);border-radius:12px;margin:0 0 4px;padding:8px 12px}
-body.embed .brand{padding:0 12px 0 0}body.embed .nav{display:flex;flex-wrap:wrap;gap:2px}body.embed .nav button{width:auto}
+body.embed aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px;border-right:0;border:1px solid var(--line);border-radius:12px;margin:0 0 6px;padding:8px 10px}
+body.embed .brand{padding:0 14px 0 0;margin-right:4px;border-right:1px solid var(--line);font-size:14px}body.embed .nav{display:flex;flex-wrap:wrap;gap:2px}body.embed .nav button{width:auto}
 body.embed .side-foot{margin:0 0 0 auto;display:flex;gap:10px;align-items:center;padding:0}
 body.embed .side-foot>div:last-child{display:none}
 body.embed main{padding:12px 4px 60px}body.embed{background:transparent}
 
 /* ---------- INVOICE (screen + print) ---------- */
-#invoiceHost{background:#d9dee5;padding:16px;border-radius:12px}
-.inv{background:#fff;color:#000;width:210mm;min-height:297mm;margin:0 auto 16px;padding:12mm 13mm;font:11px/1.4 Arial,Helvetica,sans-serif;position:relative;box-shadow:0 2px 12px #0003;page-break-after:always}
+#invoiceHost{background:#e4e7eb;padding:20px;border-radius:12px}
+/* NSS e-invoice layout: mirrors the RFID e-invoice PDF */
+.inv{background:#fff;color:#000;width:210mm;height:297mm;margin:0 auto 20px;padding:11mm 12mm 12mm;font:10.5px/1.35 Arial,Helvetica,sans-serif;position:relative;box-shadow:0 1px 6px rgba(0,0,0,.18);page-break-after:always;display:flex;flex-direction:column;overflow:hidden}
 .inv *{color:#000}
-.inv .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0b4f8a;padding-bottom:8px;margin-bottom:8px}
-.inv .co b{font-size:14px;color:#0b4f8a}.inv .co div{font-size:10px}
-.inv .ttl{font-size:18px;font-weight:700;color:#0b4f8a;text-align:right}
-.inv .two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:8px 0}
-.inv table.k{width:100%;border-collapse:collapse}.inv table.k td{border:0;padding:1.5px 0;text-align:left;font-size:10.5px;white-space:normal;vertical-align:top}.inv table.k td:first-child{width:36%;color:#333!important;font-weight:600}
-.inv table.it{width:100%;border-collapse:collapse;margin-top:10px}
-.inv table.it th{background:#0b4f8a;color:#fff!important;text-align:right;padding:5px 6px;font-size:10px;position:static}
-.inv table.it th *{color:#fff!important}
-.inv table.it th:nth-child(1),.inv table.it th:nth-child(2),.inv table.it th:nth-child(3){text-align:left}
-.inv table.it td{border-bottom:1px solid #ccc;padding:5px 6px;font-size:10.5px;white-space:normal}
-.inv table.it td:nth-child(1),.inv table.it td:nth-child(2),.inv table.it td:nth-child(3){text-align:left}
-.inv .sum{margin-left:auto;width:62%;margin-top:6px}.inv .sum table{width:100%;border-collapse:collapse}.inv .sum td{border:0;padding:3px 6px;font-size:11px}.inv .sum tr.g td{font-weight:700;border-top:1.5px solid #000;font-size:12px}
-.inv .words{margin-top:8px;font-weight:700;font-size:11px}
-.inv .box{border:1px solid #9bb4cf;background:#f4f8fc;border-radius:4px;padding:8px 10px;margin-top:10px}
-.inv .box h4{margin:0 0 5px;font-size:11px;color:#0b4f8a}
-.inv .box table{width:100%;border-collapse:collapse}.inv .box td{border:0;padding:2px 0;font-size:10.5px;white-space:normal}.inv .box td:last-child{text-align:right;font-variant-numeric:tabular-nums}.inv .box tr.g td{font-weight:700;border-top:1px solid #6b8fb4;padding-top:4px}
-.inv .notes{font-size:10px;margin-top:10px}
-.inv .ft{position:absolute;left:13mm;right:13mm;bottom:9mm;font-size:9.5px;display:flex;justify-content:space-between;border-top:1px solid #bbb;padding-top:4px;color:#444}
-.inv .an{width:100%;border-collapse:collapse;margin-top:6px}.inv .an th{background:#0b4f8a;color:#fff!important;padding:3px 4px;font-size:9px;position:static;text-align:right}.inv .an th:first-child{text-align:left}
-.inv .an td{border-bottom:1px solid #ddd;padding:2px 4px;font-size:9.5px;text-align:right}.inv .an td:first-child{text-align:left}.inv .an tr.t td{font-weight:700;border-top:1.5px solid #000;background:#eef3f9}
+.inv .hd{display:flex;gap:12px;align-items:flex-start;padding-bottom:6px;border-bottom:1px solid #000}
+.inv .hd img{width:26mm;height:auto;flex-shrink:0}
+.inv .co{line-height:1.3}.inv .co .nm{font-size:17px;font-weight:700}.inv .co .nm small{font-size:10.5px;font-weight:400}
+.inv .blk{display:grid;grid-template-columns:1.12fr 1fr;gap:18px;padding:6px 3mm 7px;border-bottom:1px solid #000}
+.inv .kv{display:grid;grid-template-columns:auto 10px 1fr;row-gap:2px;align-content:start}
+.inv .kv span:nth-child(3n+1){white-space:nowrap;padding-right:8px}
+.inv .kv.rv span:nth-child(3n){text-align:right}
+.inv .ein{font-size:17px;font-weight:700;text-align:right;margin:0 0 6px}
+.inv table.it{width:100%;border-collapse:collapse}
+.inv table.it th{font-weight:400;font-size:10px;line-height:1.25;text-align:center;vertical-align:top;padding:4px;border:0;border-bottom:1px solid #000;background:none;position:static;white-space:normal}
+.inv table.it td{padding:6px 4px;border:0;font-size:10.5px;vertical-align:top;white-space:normal;text-align:left}
+.inv .c{text-align:center!important}.inv .r{text-align:right!important}.inv .l{text-align:left!important}
+.inv .grow{flex:1}
+.inv .tot{display:flex;justify-content:space-between;gap:16px;border-top:1px solid #000;padding:4px 0 0 2mm}
+.inv .tot table{border-collapse:collapse;width:auto}
+.inv .tot td{font-weight:700;padding:1px 4px;border:0;text-align:right;font-size:10.5px;white-space:nowrap}
+.inv .tot td.b{border:1px solid #000;min-width:33mm;font-size:12px}
+.inv .notes{margin-top:14mm;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;padding-left:2mm}
+.inv .bank{display:grid;grid-template-columns:auto 14px auto;justify-content:start;row-gap:1px;margin:2px 0 4px 5mm}
+.inv .qr{width:30mm;text-align:center;font-size:10px;flex-shrink:0}.inv .qr div{width:22mm;height:22mm;border:1px dashed #aaa;margin:0 auto 3px}
+.inv .pg{position:absolute;right:12mm;bottom:6mm;font-size:9px;color:#555!important}
+.inv h3{font:700 13px/1.3 Arial,Helvetica,sans-serif;margin:10px 0 2px}
+.inv h4{font:700 11px/1.3 Arial,Helvetica,sans-serif;margin:12px 0 2px}
+.inv .note{font-size:10px;margin:2px 0}
+.inv table.st{width:100%;border-collapse:collapse}
+.inv table.st td{padding:3px 4px;border:0;border-bottom:1px solid #e3e3e3;font-size:10.5px;text-align:left;white-space:normal}
+.inv table.st td:last-child{text-align:right;width:36mm;font-variant-numeric:tabular-nums}
+.inv table.st tr.g td{font-weight:700;border-top:1px solid #000;border-bottom:1px solid #000}
+.inv table.an{width:100%;border-collapse:collapse}
+.inv table.an th{font-weight:700;font-size:9px;padding:3px 4px;border:0;border-top:1px solid #000;border-bottom:1px solid #000;text-align:right;background:none;position:static;white-space:nowrap}
+.inv table.an td{font-size:9.2px;padding:1.4px 4px;border:0;border-bottom:1px solid #eee;text-align:right}
+.inv table.an th:first-child,.inv table.an td:first-child{text-align:left}
+.inv table.an tr.t td{font-weight:700;border-top:1px solid #000;border-bottom:1px solid #000}
 @media print{
  @page{size:A4;margin:0}
  body{background:#fff}.app>aside,main>*:not(#invoiceHostWrap){display:none!important}
@@ -98,14 +113,14 @@ body.embed main{padding:12px 4px 60px}body.embed{background:transparent}
 <body>
 <div class="app">
 <aside>
-  <div class="brand"><i>⛴</i><div>GoStatement Ferry<small>Mersing · Tanjung Gemok</small></div></div>
+  <div class="brand"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 20c1.7 1 3.3 1 5 0s3.3-1 5 0 3.3 1 5 0 3.3-1 5 0"/><path d="M4.5 16 6 10.5h12l1.5 5.5"/><path d="M8.5 10.5V7h7v3.5M12 4v3"/></svg></i><div>GoStatement Ferry<small>Mersing · Tanjung Gemok</small></div></div>
   <div class="nav" id="nav">
-    <button data-p="dash" class="on">📊 Dashboard</button>
-    <button data-p="data">🗓 Daily Data</button>
-    <button data-p="up">⬆ Upload Excel</button>
-    <button data-p="und">📉 Undersales</button>
-    <button data-p="inv">🧾 Invoices</button>
-    <button data-p="set">⚙ Settings</button>
+    <button data-p="dash" class="on"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Dashboard</button>
+    <button data-p="data"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Daily Data</button>
+    <button data-p="up"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Upload Excel</button>
+    <button data-p="und"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l6 6 4-4 8 8"/><path d="M21 11v6h-6"/></svg>Undersales</button>
+    <button data-p="inv"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>Invoices</button>
+    <button data-p="set"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>Settings</button>
   </div>
   <div class="side-foot"><div class="stat" id="syncStat"></div><div style="margin-top:6px"><button class="btn ghost sm" id="btnAuth">Login</button></div><div style="margin-top:8px">NSS IT Solution Sdn Bhd</div></div>
 </aside>
@@ -382,7 +397,7 @@ async function confirmImport(){
   const keys=[];for(const r of todo){const k=keyOf(r.station,r.date);DATA[k]={t:r.t,a:r.a,u:r.u,m:r.m,src:'excel'};DIRTY.add(k);keys.push(k)}
   persistLocal();
   let msg;
-  if(UI.session){const res=await cloudPush(keys);msg=res.ok?`Imported ${todo.length} row(s) and SAVED TO CLOUD ✔`:`Imported locally but cloud saved only ${res.saved}/${todo.length} — see error above`}
+  if(UI.session){const res=await cloudPush(keys);msg=res.ok?`Imported ${todo.length} row(s) and saved to cloud`:`Imported locally but cloud saved only ${res.saved}/${todo.length} — see error above`}
   else msg=`Imported ${todo.length} row(s) on this device only. Login to save to cloud.`;
   toast(msg,6000);
   const dates=[...new Set(st.rows.map(r=>r.date))].sort();
@@ -420,59 +435,70 @@ function buildInvoice(station,mode,p){
   const dotp=`${p.from.split('-').reverse().join('.')}-${p.to.split('-').reverse().join('.')}`;
   const stn=STATIONS[station].name;
   const lines=[
-    {d:`${stn} — ONLINE TICKET COMMISSION (RM${fmt(R.commission)}/ticket)`,q:S.t,up:R.commission,tax:S.E,tot:r2(S.D+S.E),base:S.D},
-    {d:`${stn} — AGENT TICKET COMMISSION (RM${fmt(R.commission)}/ticket)`,q:S.u,up:R.commission,tax:S.K,tot:S.L,base:S.J},
-    {d:`${stn} — PAYMENT GATEWAY (MDR) FEE on online collection RM${fmt(S.C)}`,q:1,up:S.F,tax:S.G,tot:r2(S.F+S.G),base:S.F}
+    {d:`ONLINE TICKET COMMISSION (RM${fmt(R.commission)}/TICKET)`,q:S.t,up:R.commission,tax:S.E,tot:r2(S.D+S.E),base:S.D},
+    {d:`AGENT TICKET COMMISSION (RM${fmt(R.commission)}/TICKET)`,q:S.u,up:R.commission,tax:S.K,tot:S.L,base:S.J},
+    {d:`PAYMENT GATEWAY (MDR) FEE ${(R.mdr*100).toFixed(1)}% ON ONLINE COLLECTION RM${fmt(S.C)}`,q:1,up:S.F,tax:S.G,tot:r2(S.F+S.G),base:S.F}
   ];
   const excl=r2(S.D+S.J+S.F),tax=r2(S.E+S.K+S.G),incl=r2(excl+tax);
   const payout=addDays(p.to,R.payoutDays);
   const showAnnex=mode!=='daily'&&rows.length>1;
   return{station,mode,p,rows,S,lines,excl,tax,incl,no:invNo(station,mode,p),dotp,stn,C,P,payout,showAnnex,R};
 }
+function invHead(P){
+  const m=String(P.name).match(/^(.*?)\s*(\([^)]*\))?\s*$/)||[,P.name,''];
+  return `<div class="hd"><img src="../nss-logo.png" alt="NSS IT Solution"><div class="co"><div class="nm">${esc(m[1])} <small>${esc(m[2]||'')}</small></div><div><b>Service Tax No :</b> ${esc(P.sst)}</div><div>${esc(P.addr)} ${esc(P.tel)}</div><div>TIN No : ${esc(P.tin)}</div></div></div>`;
+}
+const kvHtml=a=>a.map(([k,v])=>`<span>${k}</span><span>:</span><span>${v}</span>`).join('');
 function invoiceHtml(v){
   const{S,C,P,R}=v;const U=undPeriod(v.station,v.p.from,v.p.to);
-  const dateTime=todayISO().split('-').reverse().join('/');
-  const typeLbl={daily:'DAILY',weekly:'WEEKLY',monthly:'MONTHLY',custom:'PERIOD'}[v.mode];
-  return `<section class="inv">
-  <div class="hd"><div class="co"><b>${esc(P.name)}</b><div>Service Tax No : ${esc(P.sst)}</div><div>${esc(P.addr)}</div><div>${esc(P.tel)}</div><div>TIN No : ${esc(P.tin)}</div></div>
-  <div><div class="ttl">E-INVOICE</div><div style="text-align:right;font-size:10px">${typeLbl} SETTLEMENT — ${esc(v.stn)}</div></div></div>
-  <div class="two">
-   <table class="k"><tr><td>Supplier TIN</td><td>: ${esc(P.tin)}</td></tr><tr><td>Supplier Registration No.</td><td>: ${esc(P.reg)}</td></tr><tr><td>Supplier SST ID</td><td>: ${esc(P.sst)}</td></tr><tr><td>Supplier MSIC Code</td><td>: ${esc(P.msic)}</td></tr><tr><td>Supplier Email</td><td>: ${esc(P.email)}</td></tr></table>
-   <table class="k"><tr><td>Invoice No.</td><td>: <b>${esc(v.no)}</b></td></tr><tr><td>Invoice Date</td><td>: ${dateTime}</td></tr><tr><td>Settlement Period</td><td>: ${esc(v.p.label)}</td></tr><tr><td>Payout Date (T+${R.payoutDays})</td><td>: ${dmy(v.payout)}</td></tr><tr><td>Currency Code</td><td>: MYR</td></tr></table>
-  </div>
-  <div class="two">
-   <table class="k"><tr><td>Buyer Name</td><td>: <b>${esc(C.buyer)}</b></td></tr><tr><td>Buyer TIN</td><td>: ${esc(C.tin||'-')}</td></tr><tr><td>Buyer Registration No.</td><td>: ${esc(C.reg||'-')}</td></tr><tr><td>Buyer Address</td><td>: ${esc(C.addr||'-')}</td></tr></table>
-   <table class="k"><tr><td>Buyer Email</td><td>: ${esc(C.email)}</td></tr><tr><td>Buyer Contact No.</td><td>: ${esc(C.contact||'-')}</td></tr><tr><td>Station</td><td>: ${esc(v.stn)}</td></tr></table>
-  </div>
-  <table class="it"><thead><tr><th>ITEM</th><th>TAX CLASS.</th><th>DESCRIPTION</th><th>QUANTITY</th><th>U.PRICE (RM)</th><th>SERVICE TAX (8%)</th><th>TOTAL (RM)</th></tr></thead><tbody>
-   <tr><td></td><td>022</td><td><b>SETTLEMENT CHARGES (${esc(v.dotp)})</b></td><td></td><td></td><td></td><td></td></tr>
-   ${v.lines.map((l,i)=>`<tr><td>${i+1}.</td><td>022</td><td>${esc(l.d)}</td><td style="text-align:right">${fmtN(l.q)}</td><td style="text-align:right">${fmt(l.q?r2(l.base/(l.q||1)):l.up)}</td><td style="text-align:right">${fmt(l.tax)}</td><td style="text-align:right">${fmt(l.tot)}</td></tr>`).join('')}
+  const n=new Date(),dt=`${dmy(todayISO())} ${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
+  const sst=(R.sst*100).toFixed(0);
+  const page1=`<section class="inv">${invHead(P)}
+  <div class="blk"><div class="kv">${kvHtml([['Supplier TIN',esc(P.tin)],['Supplier Registration No.',esc(P.reg)],['Supplier SST ID',esc(P.sst)],['Supplier MSIC Code',esc(P.msic)],['Supplier Email',esc(P.email)]])}</div>
+   <div><div class="ein">E-INVOICE</div><div class="kv rv">${kvHtml([['Document Code',esc(v.no)],['Unique Identifier No.','-'],['Invoice Date and Time',dt]])}</div></div></div>
+  <div class="blk"><div class="kv">${kvHtml([['Buyer Name',`<b>${esc(C.buyer)}</b>`],['Buyer TIN',`<b>${esc(C.tin||'-')}</b>`],['Buyer Registration No.',`<b>${esc(C.reg||'-')}</b>`],['Buyer Address',esc(C.addr||'-')],['Buyer Contact No.',esc(C.contact||'-')]])}</div>
+   <div class="kv">${kvHtml([['Buyer Email',esc(C.email)],['Due Date',dmy(v.payout)],['Your PO No.',''],['Page','1 of 2'],['Invoice Currency Code','MYR']])}</div></div>
+  <table class="it"><thead><tr><th class="l" style="width:7%">ITEM</th><th style="width:13%">TAX<br>CLASSIFICATION</th><th>DESCRIPTION</th><th style="width:9%">QUANTITY</th><th style="width:10%">U.PRICE<br>(RM)</th><th style="width:12%">SERVICE TAX<br>(${sst}%)</th><th style="width:11%" class="r">TOTAL<br>(RM)</th></tr></thead><tbody>
+   <tr><td></td><td class="c">022</td><td>FERRY SETTLEMENT CHARGES - ${esc(v.stn)} (${esc(v.dotp)})</td><td></td><td></td><td></td><td></td></tr>
+   ${v.lines.map((l,i)=>`<tr><td>${i+1}.</td><td class="c">022</td><td>${esc(l.d)}</td><td class="c">${fmtN(l.q)}</td><td class="r">${fmt(l.q?r2(l.base/(l.q||1)):l.up)}</td><td class="r">${fmt(l.tax)}</td><td class="r">${fmt(l.tot)}</td></tr>`).join('')}
   </tbody></table>
-  <div class="words">${esc(words(v.incl))}</div>
-  <div class="sum"><table><tr><td>TOTAL EXCL. TAX (RM)</td><td style="text-align:right">${fmt(v.excl)}</td></tr><tr><td>SERVICE TAX @ ${(R.sst*100).toFixed(0)}%</td><td style="text-align:right">${fmt(v.tax)}</td></tr><tr class="g"><td>TOTAL INCL. TAX (RM)</td><td style="text-align:right">${fmt(v.incl)}</td></tr></table></div>
-  <div class="box"><h4>SETTLEMENT STATEMENT — ${esc(v.stn)} · ${esc(v.p.label)}</h4><table>
+  <div class="grow"></div>
+  <div class="tot"><div>${esc(words(v.incl))}</div><table>
+   <tr><td>TOTAL EXCL. TAX (RM)</td><td class="b">${fmt(v.excl)}</td></tr>
+   <tr><td>SERVICE TAX @ ${sst}%</td><td class="b">${fmt(v.tax)}</td></tr>
+   <tr><td>TOTAL INCL. TAX (RM)</td><td class="b">${fmt(v.incl)}</td></tr></table></div>
+  <div class="notes"><div>Notes :<br>1. Payment is accepted via bank transfer.
+   <div class="bank"><span>Account Name</span><span>:</span><b>${esc(P.bankHolder)}</b><span>Banker Name</span><span>:</span><b>${esc(P.bankName)}</b><span>Account Number</span><span>:</span><b>${esc(P.bankAcc)}</b></div>
+   2. Interest of 1% per month will be charged if payment is not received by the due date.<br>3. This document is a visual presentation of the e-invoice.<br>4. Charges are deducted from the online collection. Settlement detail is in the attachment (page 2).</div>
+   <div class="qr"><div></div>LHDN Validated Link</div></div>
+  <div class="pg">Page 1 of 2</div></section>`;
+  return page1+attachmentHtml(v,U,dt);
+}
+function attachmentHtml(v,U,dt){
+  const{S,C,P,R}=v;const rows=v.rows;const und=U.any&&(U.added||U.rec);
+  return `<section class="inv">${invHead(P)}
+  <div class="blk"><div class="kv">${kvHtml([['Buyer Name',`<b>${esc(C.buyer)}</b>`],['Station',esc(v.stn)],['Settlement Period',esc(v.p.label)]])}</div>
+   <div class="kv">${kvHtml([['Invoice Ref.',esc(v.no)],['Invoice Date',dt.split(' ')[0]],[`Payout Date (T+${R.payoutDays})`,dmy(v.payout)],['Page','2 of 2']])}</div></div>
+  <h3>ATTACHMENT - SETTLEMENT DETAIL</h3>
+  <div class="note">Supporting detail for e-invoice ${esc(v.no)}. All amounts in RM.</div>
+  <h4>A. SETTLEMENT STATEMENT</h4>
+  <table class="st">
    <tr><td>Online ticket sales (${fmtN(S.t)} tickets)</td><td>${fmt(S.a)}</td></tr>
    <tr><td>Add: Processing fee ${(R.proc*100).toFixed(0)}%</td><td>${fmt(S.B)}</td></tr>
-   <tr><td><b>Total online collection</b></td><td><b>${fmt(S.C)}</b></td></tr>
-   <tr><td>Less: Online commission incl. SST</td><td>(${fmt(r2(S.D+S.E))})</td></tr>
-   <tr><td>Less: MDR fee incl. SST</td><td>(${fmt(r2(S.F+S.G))})</td></tr>
-   <tr><td>Less: Agent commission incl. SST (${fmtN(S.u)} tickets)</td><td>(${fmt(S.L)})</td></tr>
-   <tr class="g"><td>${U.any&&(U.added||U.rec)?'NET SETTLEMENT (CALCULATED) (RM)':S.M<0?'NET AMOUNT DUE TO NSS (RM) — charges exceed online collection':'NET PAYABLE TO OPERATOR (RM)'}</td><td>${U.any&&(U.added||U.rec)?fmt(S.M):fmt(Math.abs(S.M))}</td></tr>
-   ${U.any&&(U.added||U.rec)?`${U.added?`<tr><td>Add: shortfall carried to Undersales Tracker</td><td>${fmt(U.added)}</td></tr>`:''}${U.rec?`<tr><td>Less: undersales recovered from this settlement</td><td>(${fmt(U.rec)})</td></tr>`:''}<tr class="g"><td>NET PAYOUT TO OPERATOR (RM)</td><td>${fmt(r2(S.M+U.added-U.rec))}</td></tr>`:''}
+   <tr class="g"><td>Total online collection</td><td>${fmt(S.C)}</td></tr>
+   <tr><td>Less: Online ticket commission incl. SST</td><td>(${fmt(r2(S.D+S.E))})</td></tr>
+   <tr><td>Less: Payment gateway (MDR) fee incl. SST</td><td>(${fmt(r2(S.F+S.G))})</td></tr>
+   <tr><td>Less: Agent ticket commission incl. SST (${fmtN(S.u)} tickets)</td><td>(${fmt(S.L)})</td></tr>
+   <tr class="g"><td>${und?'Net settlement (calculated)':S.M<0?'Net amount due to NSS (charges exceed online collection)':'Net payable to operator'}</td><td>${und?fmt(S.M):fmt(Math.abs(S.M))}</td></tr>
+   ${und?`${U.added?`<tr><td>Add: Shortfall carried to undersales tracker</td><td>${fmt(U.added)}</td></tr>`:''}${U.rec?`<tr><td>Less: Undersales recovered from this settlement</td><td>(${fmt(U.rec)})</td></tr>`:''}<tr class="g"><td>Net payout to operator</td><td>${fmt(r2(S.M+U.added-U.rec))}</td></tr>`:''}
   </table>
-   ${U.any&&U.bal>0.004?`<div style="margin-top:4px;font-size:10px"><b>Undersales outstanding as at ${dmy(v.p.to)}: RM ${fmt(U.bal)}</b> — to be recovered from future settlements.</div>`:''}
-   <div style="margin-top:6px;font-size:10px"><b>Payment to:</b> ${esc(C.payee)} · ${esc(C.buyer)} · ${esc(C.bank)}: ${esc(C.acc)}</div></div>
-  <div class="notes"><b>Notes :</b><br>1. Charges above are deducted from online collection; net payable is paid via bank transfer to the operator account stated.<br>
-   &nbsp;&nbsp;&nbsp;Account Name : ${esc(P.bankHolder)} &nbsp;|&nbsp; Banker Name : ${esc(P.bankName)} &nbsp;|&nbsp; Account Number : ${esc(P.bankAcc)} (for any amount payable to NSS)<br>
-   2. Interest of 1% per month will be charged if payment is not received by the due date.<br>3. This document is a visual presentation of the e-invoice.</div>
-  ${v.showAnnex?annexHtml(v):''}
-  <div class="ft"><span>${esc(v.no)}</span><span>Generated by GoStatement Ferry</span></div></section>`;
-}
-function annexHtml(v){
-  const rows=v.rows,S=v.S;
-  return `<div class="box" style="background:#fff"><h4>DAILY BREAKDOWN</h4><table class="an"><thead><tr><th>Date</th><th>Tickets</th><th>Sales</th><th>Total Amt</th><th>Comm.+SST</th><th>MDR+SST</th><th>Agent T.</th><th>Agent+SST</th><th>Net Payable</th></tr></thead><tbody>
+  ${U.any&&U.bal>0.004?`<div class="note"><b>Undersales outstanding as at ${dmy(v.p.to)}: RM ${fmt(U.bal)}</b>, to be recovered from future settlements.</div>`:''}
+  <div class="note"><b>Payout to:</b> ${esc(C.payee)} &middot; ${esc(C.bank)} ${esc(C.acc)}</div>
+  <h4>B. DAILY BREAKDOWN</h4>
+  <table class="an"><thead><tr><th>Date</th><th>Tickets</th><th>Sales</th><th>Total Collection</th><th>Comm. + SST</th><th>MDR + SST</th><th>Agent Tickets</th><th>Agent + SST</th><th>Net Payable</th></tr></thead><tbody>
   ${rows.map(r=>`<tr><td>${dmy(r.date)} ${DOWN[dow(r.date)].slice(0,3)}</td><td>${fmtN(r.t)}</td><td>${fmt(r.a)}</td><td>${fmt(r.C)}</td><td>${fmt(r2(r.D+r.E))}</td><td>${fmt(r2(r.F+r.G))}</td><td>${fmtN(r.u)}</td><td>${fmt(r.L)}</td><td>${fmt(r.M)}</td></tr>`).join('')}
-  <tr class="t"><td>TOTAL</td><td>${fmtN(S.t)}</td><td>${fmt(S.a)}</td><td>${fmt(S.C)}</td><td>${fmt(r2(S.D+S.E))}</td><td>${fmt(r2(S.F+S.G))}</td><td>${fmtN(S.u)}</td><td>${fmt(S.L)}</td><td>${fmt(S.M)}</td></tr></tbody></table></div>`;
+  <tr class="t"><td>TOTAL</td><td>${fmtN(S.t)}</td><td>${fmt(S.a)}</td><td>${fmt(S.C)}</td><td>${fmt(r2(S.D+S.E))}</td><td>${fmt(r2(S.F+S.G))}</td><td>${fmtN(S.u)}</td><td>${fmt(S.L)}</td><td>${fmt(S.M)}</td></tr></tbody></table>
+  <div class="pg">Page 2 of 2</div></section>`;
 }
 function genInvoices(station,mode,date,customTo){
   const out=[];const sts=station==='BOTH'?SK:[station];
@@ -500,7 +526,7 @@ function pageDash(){
   const kpi=(l,v,s)=>`<div class="card kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s||''}</div></div>`;
   const stCard=(k,S)=>`<div class="card"><h2 class="${STATIONS[k].cls}">${STATIONS[k].name}</h2><div class="grid g2" style="gap:8px">
    ${[['Tickets (online)',fmtN(S.t)],['Online collection',fmt(S.C)],['Commission + SST',fmt(r2(S.D+S.E))],['MDR + SST',fmt(r2(S.F+S.G))],['Agent tickets',fmtN(S.u)],['Agent + SST',fmt(S.L)],['NSS total charges',fmt(S.charges)],['Net payable',fmt(S.M)]].map(([a,b])=>`<div><div class="sub" style="margin:0;font-size:12px">${a}</div><b>${b}</b></div>`).join('')}</div></div>`;
-  return `<div class="top"><div><h1>Dashboard</h1><p class="sub">${monthLabel(ym)} · all amounts in RM</p></div><div class="row">${monthPicker()}<button class="btn" data-go="up">⬆ Upload Excel</button><button class="btn ghost" data-go="inv">🧾 Make invoice</button></div></div>
+  return `<div class="top"><div><h1>Dashboard</h1><p class="sub">${monthLabel(ym)} · all amounts in RM</p></div><div class="row">${monthPicker()}<button class="btn" data-go="up"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Upload Excel</button><button class="btn ghost" data-go="inv">Make invoice</button></div></div>
   <div class="grid g4">${kpi('Online collection',fmt(all.C),`sales ${fmt(all.a)} + 3% fee ${fmt(all.B)}`)}${kpi('Online tickets',fmtN(all.t),`+ ${fmtN(all.u)} agent tickets`)}${kpi('NSS invoice total',fmt(all.charges),'commission + MDR + agent, incl. SST')}${kpi('Net payable to operators',fmt(all.M),'after all deductions')}</div>
   <div class="grid g2">${stCard('MERSING',M)}${stCard('TG_GEMOK',T)}</div>
   ${allDates().length?'':'<div class="card"><b>No data yet.</b> Go to <b>Upload Excel</b> and drop the SUMMARY SALES file — it will read, save and be ready for invoices straight away.</div>'}`;
@@ -548,7 +574,7 @@ function wireData(){
     const cur=DATA[keyOf(s,d)]||{t:0,a:0,u:0,m:null};const rec={t:cur.t,a:cur.a,u:cur.u,m:cur.m};const f=i.dataset.f;rec[f]=i.value===''?(f==='m'?null:0):+i.value;
     if(rec[f]!==null&&(rec[f]<0||isNaN(rec[f]))){toast('Enter a number ≥ 0');return}
     const r=await setRecord(s,d,rec,'manual');refreshRow(d);
-    if(UI.session&&r.ok)toast('Saved ✔',1200);else if(!UI.session)toast('Saved on this device — login to save to cloud',2500);
+    if(UI.session&&r.ok)toast('Saved',1200);else if(!UI.session)toast('Saved on this device — login to save to cloud',2500);
   });
   body.addEventListener('click',async e=>{
     const b=e.target.closest('[data-del]');if(!b)return;const k=b.dataset.del;const[s,d]=k.split('|');
@@ -561,7 +587,7 @@ function wireData(){
 function pageUp(){
   const st=UI.staged;
   let h=`<div class="top"><div><h1>Upload Excel</h1><p class="sub">Drop the <b>SUMMARY SALES MERSING AND TANJUNG GEMOK</b> workbook. Every monthly tab (2609, 2610 …) is read automatically; days already in the system are updated, not duplicated.</p></div></div>
-  <div class="drop" id="drop"><div style="font-size:30px">⬆</div><b>Drop .xlsx here or click to choose</b><div class="sub" style="margin:6px 0 0">Reads: No. of tickets · Ticket sales · Agent tickets per station per day. Everything else is calculated.</div><input type="file" id="fileIn" accept=".xlsx,.xls" class="hide"></div>`;
+  <div class="drop" id="drop"><div style="color:var(--mute);margin-bottom:6px"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg></div><b>Drop .xlsx here or click to choose</b><div class="sub" style="margin:6px 0 0">Reads: No. of tickets · Ticket sales · Agent tickets per station per day. Everything else is calculated.</div><input type="file" id="fileIn" accept=".xlsx,.xls" class="hide"></div>`;
   if(st){
     const c={new:0,update:0,same:0};st.rows.forEach(r=>c[r.status]++);
     const bySt=SK.map(s=>{const rr=st.rows.filter(r=>r.station===s);const S=sumCalc(rr.map(r=>calc(r)));return `<tr><td class="${STATIONS[s].cls}"><b>${STATIONS[s].name}</b></td><td>${rr.length}</td><td>${fmtN(S.t)}</td><td>${fmt(S.a)}</td><td>${fmtN(S.u)}</td><td>${fmt(S.M)}</td></tr>`}).join('');
@@ -569,7 +595,7 @@ function pageUp(){
     <div class="tw"><table><thead><tr><th>Station</th><th>Days</th><th>Tickets</th><th>Online sales</th><th>Agent T.</th><th>Net payable</th></tr></thead><tbody>${bySt}</tbody></table></div>
     <div class="row" style="margin-top:12px"><button class="btn" id="btnImp" ${c.new+c.update?'':'disabled'}>Save ${c.new+c.update} row(s) ${UI.session?'to cloud':'(this device)'}</button><button class="btn ghost" id="btnCancelImp">Cancel</button>${UI.session?'':'<span class="pill warn">Not logged in — data will stay on this device only</span>'}</div></div>`;
   }
-  if(UI.lastImport&&!st){h+=`<div class="card" style="margin-top:14px"><h2>Imported ✔</h2><p class="sub">${dmy(UI.lastImport.from)} → ${dmy(UI.lastImport.to)} is saved. Generate invoices now:</p><div class="row"><button class="btn" id="btnInvNow">🧾 Daily invoices for imported days</button><button class="btn ghost" data-go="inv">Open Invoices</button></div></div>`}
+  if(UI.lastImport&&!st){h+=`<div class="card" style="margin-top:14px"><h2>Import complete</h2><p class="sub">${dmy(UI.lastImport.from)} → ${dmy(UI.lastImport.to)} is saved. Generate invoices now:</p><div class="row"><button class="btn" id="btnInvNow">Daily invoices for imported days</button><button class="btn ghost" data-go="inv">Open Invoices</button></div></div>`}
   return h;
 }
 function wireUp(){
@@ -591,7 +617,7 @@ function pageInv(){
    ${dateRow}<button class="btn" id="btnGen">Generate</button></div>
    <p class="sub" style="margin:10px 0 0">Period: <b>${esc(p.label)}</b></p></div>
   <div class="card"><h2>Batch</h2><div class="row"><button class="btn ghost" id="btnBatchMonth">All daily invoices for ${monthLabel(UI.month||UI.invDate.slice(0,7))} (${monthsDaysCount()} days)</button><span class="sub" style="margin:0">One PDF with a page per day per station.</span></div></div>
-  <div id="invBar" class="card hide"><div class="row"><button class="btn" id="btnPrint">🖨 Print / Save as PDF</button><span id="mailBtns" class="row"></span><button class="btn ghost" id="btnCloseInv">Close preview</button></div></div>
+  <div id="invBar" class="card hide"><div class="row"><button class="btn" id="btnPrint">Print / Save as PDF</button><span id="mailBtns" class="row"></span><button class="btn ghost" id="btnCloseInv">Close preview</button></div></div>
   <div id="invPreview"></div>`;
 }
 function monthsDaysCount(){const ym=UI.month||UI.invDate.slice(0,7);return new Set(Object.keys(DATA).filter(k=>k.split('|')[1].startsWith(ym)).map(k=>k.split('|')[1])).size}
@@ -603,7 +629,7 @@ function batchDaily(from,to,station){
 function renderInvPreview(){
   const list=UI.invList||[];const host=$('#invPreview');
   if(host)host.innerHTML=`<p class="sub">${list.length} invoice(s) ready — scroll the preview below.</p>`;
-  const mb=$('#mailBtns');if(mb)mb.innerHTML=list.length<=4?list.map(v=>`<a class="btn ghost" style="text-decoration:none" href="${mailto(v)}">✉ Email ${esc(STATIONS[v.station].name)}</a>`).join(''):'';
+  const mb=$('#mailBtns');if(mb)mb.innerHTML=list.length<=4?list.map(v=>`<a class="btn ghost" style="text-decoration:none" href="${mailto(v)}">Email ${esc(STATIONS[v.station].name)}</a>`).join(''):'';
 }
 function mailto(v){
   const sub=encodeURIComponent(`Settlement Invoice ${v.no} — ${v.stn} (${v.p.label})`);
@@ -654,7 +680,7 @@ function pageUnd(){
     ${L.map(r=>`<tr><td>${dmy(r.date)}</td><td style="text-align:left;white-space:normal">${esc(r.desc)}</td><td>${r.kind==='undersale'?fmt(r.amount):''}</td><td>${r.kind==='recovery'?fmt(r.amount):''}</td><td>${fmt(r.bal)}</td><td>${r.cleared?dmy(r.cleared):''}</td><td><button class="btn ghost sm" data-udel="${esc(r.key)}">✕</button></td></tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--mute)">No entries yet</td></tr>'}</tbody></table></div>
     <div class="row" style="margin-top:10px;align-items:flex-end"><label class="f">Date<input type="date" id="ua_d_${st}" value="${todayISO()}"></label><label class="f">Type<select id="ua_k_${st}"><option value="undersale">Undersale</option><option value="recovery">Recovered</option></select></label><label class="f">Amount (RM)<input type="number" step="0.01" min="0" id="ua_a_${st}" style="width:110px"></label><label class="f" style="flex:1;min-width:160px">Description<input type="text" id="ua_t_${st}" placeholder="e.g. Agent under-charged: booking ..."></label><button class="btn" data-uadd="${st}">Add</button></div></div>`};
   return `<div class="top"><div><h1>Undersales</h1><p class="sub">When a settlement nets <b>negative</b> (agent commission &gt; online net), the shortfall is an undersale. Later positive settlements recover it. Same layout as your UNDERSALES Excel.</p></div>
-   <div class="row"><label class="btn ghost" style="cursor:pointer">⬆ Import UNDERSALES Excel<input type="file" id="undFile" accept=".xlsx,.xls" class="hide"></label><button class="btn ghost" id="undExport">⬇ Export Excel</button></div></div>
+   <div class="row"><label class="btn ghost" style="cursor:pointer">Import UNDERSALES Excel<input type="file" id="undFile" accept=".xlsx,.xls" class="hide"></label><button class="btn ghost" id="undExport">⬇ Export Excel</button></div></div>
   <div class="card"><h2>Suggest from daily data</h2><p class="sub" style="margin:0 0 8px">Tue/Wed/Thu settle on their own day; Fri+Sat+Sun+Mon settle together on Monday (this reproduces your Mersing Excel exactly). Days already in the tracker are skipped. Review before adding.</p>
    <div class="row" style="align-items:flex-end"><label class="f">Track from (first batch day)<input type="date" id="undStart" value="${start}"></label><button class="btn" id="undSug">Find undersales / recoveries</button></div><div id="undSugOut"></div></div>
   ${card('MERSING')}${card('TG_GEMOK')}`;
@@ -665,7 +691,7 @@ function wireUnd(){
   q('#undFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;
     try{await loadXLSX();const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});const list=parseUndersalesWb(wb);
       if(!list.length)return toast('No tracker rows found (need sheets named MERSING / TANJUNG GEMOK with Date column).',7000);
-      const r=await undAdd(list,'excel');toast(`Imported ${r.added} row(s)${r.dup?`, ${r.dup} already existed`:''}${r.cloud===true?' · SAVED TO CLOUD ✔':r.cloud===false?' · cloud save FAILED':' · this device only (login to save to cloud)'}`,7000);render()}
+      const r=await undAdd(list,'excel');toast(`Imported ${r.added} row(s)${r.dup?`, ${r.dup} already existed`:''}${r.cloud===true?' · saved to cloud':r.cloud===false?' · cloud save FAILED':' · this device only (login to save to cloud)'}`,7000);render()}
     catch(err){console.error(err);toast('Could not read file: '+err.message,6000)}};
   q('#undSug').onclick=()=>{
     const start=q('#undStart').value||'2026-10-06';UI.undStart=start;
@@ -674,13 +700,13 @@ function wireUnd(){
     if(!sug.length){out.innerHTML='<p class="sub" style="margin-top:10px">Nothing new to add from '+dmy(start)+' — tracker already matches the daily data.</p>';return}
     out.innerHTML=`<div class="tw" style="margin-top:10px;max-height:40vh"><table><thead><tr><th></th><th>Station</th><th>Date</th><th>Type</th><th>Amount</th><th>Description</th></tr></thead><tbody>${sug.map((u,i)=>`<tr><td><input type="checkbox" data-sg="${i}" checked></td><td>${STATIONS[u.station].name}</td><td>${dmy(u.date)}</td><td>${u.kind==='undersale'?'Undersale':'Recovered'}</td><td>${fmt(u.amount)}</td><td style="text-align:left">${esc(u.desc)}</td></tr>`).join('')}</tbody></table></div><div class="row" style="margin-top:8px"><button class="btn" id="undSugAdd">Add selected to tracker</button></div>`;
     q('#undSugAdd').onclick=async()=>{const pick=[...document.querySelectorAll('[data-sg]')].filter(c=>c.checked).map(c=>UI.undSugList[+c.dataset.sg]);
-      const r=await undAdd(pick,'suggest');toast(`Added ${r.added} row(s)${r.cloud===true?' · SAVED TO CLOUD ✔':r.cloud===false?' · cloud save FAILED':' · this device only'}`,5000);render()};
+      const r=await undAdd(pick,'suggest');toast(`Added ${r.added} row(s)${r.cloud===true?' · saved to cloud':r.cloud===false?' · cloud save FAILED':' · this device only'}`,5000);render()};
   };
   document.querySelectorAll('[data-uadd]').forEach(b=>b.onclick=async()=>{const st=b.dataset.uadd;
     const date=q('#ua_d_'+st).value,kind=q('#ua_k_'+st).value,amount=+q('#ua_a_'+st).value,desc=q('#ua_t_'+st).value.trim();
     if(!date||!(amount>0))return toast('Enter a date and an amount above 0');
     const r=await undAdd([{station:st,date,kind,amount,desc:desc||(kind==='recovery'?'Recovered from settlement':'Undersale')}],'manual');
-    toast(r.dup?'That exact entry already exists':(r.cloud===false?'Saved locally — cloud save failed':'Added'+(r.cloud?' ✔':'')),3500);render()});
+    toast(r.dup?'That exact entry already exists':(r.cloud===false?'Saved locally — cloud save failed':'Added'+(r.cloud?'':'')),3500);render()});
   document.querySelectorAll('[data-udel]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this tracker row?'))return;await undDelete(b.dataset.udel);render()});
   q('#undExport').onclick=async()=>{
     try{await loadXLSX()}catch(e){return toast(e.message,5000)}

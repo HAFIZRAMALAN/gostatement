@@ -19,7 +19,7 @@
     --ms:#7C3AED; --ms-soft:#F3E8FF; --ms-ink:#5B21B6;
     --shadow: 0 1px 3px rgba(11,18,32,.08), 0 8px 24px -12px rgba(11,18,32,.16);
     --radius:10px;
-    --font-display:'Fraunces',ui-serif,Georgia,serif;
+    --font-display:'Inter',-apple-system,system-ui,'Segoe UI',Roboto,sans-serif;
     --font-body:'Inter',-apple-system,system-ui,'Segoe UI',Roboto,sans-serif;
     --font-mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
   }
@@ -430,7 +430,7 @@
   /* KPI card premium lift */
   .kpi{ border:1px solid var(--border); transition: box-shadow .15s, transform .15s; }
   .kpi:hover{ box-shadow: 0 4px 16px rgba(11,18,32,.08); transform: translateY(-1px); }
-  .kpi .value{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+  .kpi .value{ font-family:var(--font-body); font-weight:650; font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
   
   /* Sidebar premium — thinner, more bank-like */
   #sidebar{ border-right:1px solid rgba(255,255,255,.06); }
