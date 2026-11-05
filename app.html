@@ -195,6 +195,24 @@
   .nav-item:hover{background:rgba(255,255,255,.06);}
   .nav-item.active{background:var(--sidebar-active); color:#fff;}
   .nav-item.active svg{opacity:1;}
+  .nav-item .nav-count{margin-left:auto; font-size:11px; font-weight:600; color:var(--sidebar-ink-dim); background:rgba(255,255,255,.06); border-radius:99px; padding:1px 7px;}
+  .nav-item.active .nav-count{color:#fff; background:rgba(255,255,255,.12);}
+  /* Module tab bar — one sidebar entry per module, its pages as tabs on top (same pattern as Ferry) */
+  .subnav{display:flex; align-items:center; gap:14px; flex-wrap:wrap; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:8px 10px; margin-bottom:18px;}
+  .subnav-brand{display:flex; align-items:center; gap:10px; font-weight:700; font-size:14px; padding-right:14px; border-right:1px solid var(--border); color:var(--ink); white-space:nowrap;}
+  .subnav-brand i{width:30px; height:30px; border-radius:8px; background:var(--accent); color:#fff; display:grid; place-items:center; font-style:normal; flex-shrink:0;}
+  .subnav-brand i svg{width:17px; height:17px;}
+  .subnav-brand small{display:block; font-weight:500; color:var(--ink-soft); font-size:11px;}
+  .subnav-tabs{display:flex; flex-wrap:wrap; gap:2px;}
+  .subnav-tab{display:flex; align-items:center; gap:7px; padding:7px 11px; border-radius:8px; border:0; background:transparent; color:var(--ink-soft); font-weight:600; font-size:13px; cursor:pointer; transition:background .12s ease, color .12s ease;}
+  .subnav-tab svg{width:15px; height:15px; flex-shrink:0;}
+  .subnav-tab:hover{background:var(--surface-2); color:var(--ink);}
+  .subnav-tab.on{background:var(--accent-soft); color:var(--accent);}
+  @media (max-width:760px){
+    .subnav-brand{border-right:0; padding-right:0; width:100%;}
+    .subnav-tabs{flex-wrap:nowrap; overflow-x:auto; width:100%;}
+    .subnav-tab{white-space:nowrap;}
+  }
   #sidebar-foot{margin-top:auto; padding-top:16px; border-top:1px solid rgba(255,255,255,.08);}
   .who{display:flex; align-items:center; gap:10px; padding:8px 10px;}
   .who .avatar{
@@ -1995,6 +2013,8 @@ const ICONS = {
   statement: icon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M12 12v6M9 15h6"/>'),
   mail: icon('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/>'),
   carryforward: icon('<path d="M3 17h4l3-8 4 12 3-9h4"/><path d="M3 5h18"/>'),
+  bus: icon('<rect x="4" y="3" width="16" height="15" rx="2.5"/><path d="M4 11h16M8 18v2.5M16 18v2.5M9 3v8M15 3v8"/>'),
+  ferry: icon('<path d="M2 20c1.7 1 3.3 1 5 0s3.3-1 5 0 3.3 1 5 0 3.3-1 5 0"/><path d="M4.5 16 6 10.5h12l1.5 5.5"/><path d="M8.5 10.5V7h7v3.5M12 4v3"/>'),
 };
 
 // Grantable app sections for a scoped (non-super) admin. 'admins' isn't in
@@ -2028,7 +2048,7 @@ function navItemsFor(actor){
       {route:'manualinvoice', label:'Manual Invoice', icon:ICONS.invoice},
       {route:'chargestatements', label:'Charges & Credits', icon:ICONS.statement},
       {route:'sendstatements', label:'Send Statements', icon:ICONS.mail},
-      {route:'ferry', label:'Ferry (MSG / TGM)', icon:ICONS.ledger},
+      {route:'ferry', label:'Ferry (MSG / TGM)', icon:ICONS.ferry},
       {route:'admins', label:'Admins', icon:ICONS.admins},
     ];
     return all.filter(item=>{
@@ -2045,22 +2065,69 @@ function navItemsFor(actor){
   ];
 }
 
+// Bus settlement pages live under ONE sidebar entry, shown as tabs across the
+// top of the page (same pattern as the Ferry module) so the sidebar stays short.
+const BUS_ROUTES = ['ledger','undersales','entry','reconcile','manualinvoice','chargestatements','sendstatements'];
+const NAV_SECTION = { ferry:'Modules', bus:'Modules', admins:'Settings' };
+function isAdminConsole(actor){ return actor.type === 'admin' && !VIEW.viewingAsOperatorId; }
+function busTabsFor(actor){ return navItemsFor(actor).filter(it=>BUS_ROUTES.includes(it.route)); }
+function sidebarEntriesFor(actor){
+  const out = []; let bus = null;
+  for(const it of navItemsFor(actor)){
+    if(BUS_ROUTES.includes(it.route)){
+      if(!bus){
+        bus = { key:'bus', label: isAdminConsole(actor) ? 'Bus Settlement' : 'Settlement', icon:ICONS.bus, tabs:[] };
+        out.push(bus);
+      }
+      bus.tabs.push(it);
+    } else out.push({ key:it.route, label:it.label, icon:it.icon, route:it.route });
+  }
+  return out;
+}
+function busTabBarHtml(actor){
+  if(!BUS_ROUTES.includes(VIEW.route)) return '';
+  const tabs = busTabsFor(actor);
+  if(!tabs.length) return '';
+  let title, sub;
+  if(isAdminConsole(actor)){ title = 'Bus Settlement'; sub = Object.values(TERMINALS).map(t=>t.short).join(' · '); }
+  else {
+    const op = actor.type === 'admin' ? findOperatorById(VIEW.viewingAsOperatorId) : actor.op;
+    title = op ? esc(op.company) : 'Settlement'; sub = op && TERMINALS[op.terminal] ? TERMINALS[op.terminal].short : '';
+  }
+  return `<div class="subnav"><div class="subnav-brand"><i>${ICONS.bus}</i><div>${title}<small>${sub}</small></div></div>
+    <div class="subnav-tabs" role="tablist">${tabs.map(t=>`<button class="subnav-tab ${VIEW.route===t.route?'on':''}" role="tab" aria-selected="${VIEW.route===t.route}" data-subroute="${t.route}">${t.icon}<span>${t.label}</span></button>`).join('')}</div></div>`;
+}
+
 function renderShell(){
   const actor = currentActor();
   if(!actor){ logout(); return; }
 
   const nav = document.getElementById('nav-root');
   nav.innerHTML = '';
-  const group = el('<div class="nav-group"></div>');
-  for(const item of navItemsFor(actor)){
-    const btn = el(`<button class="nav-item ${VIEW.route===item.route?'active':''}">${item.icon}<span>${item.label}</span></button>`);
+  let group = null, lastSection;
+  for(const entry of sidebarEntriesFor(actor)){
+    const section = isAdminConsole(actor) ? (NAV_SECTION[entry.key] || '') : '';
+    if(!group || section !== lastSection){
+      group = el('<div class="nav-group"></div>');
+      if(section) group.appendChild(el(`<div class="nav-label">${section}</div>`));
+      nav.appendChild(group); lastSection = section;
+    }
+    const isActive = entry.tabs ? entry.tabs.some(t=>t.route===VIEW.route) : VIEW.route===entry.route;
+    const count = entry.tabs && entry.tabs.length > 1 ? `<span class="nav-count">${entry.tabs.length}</span>` : '';
+    const btn = el(`<button class="nav-item ${isActive?'active':''}">${entry.icon}<span>${entry.label}</span>${count}</button>`);
     btn.addEventListener('click', async ()=>{
-      IMPORT_PREVIEW = null; VIEW.route = item.route; renderShell();
-      if(item.route === 'admins' && window.GoStatementLive){ await cloudLoadDirectory(); renderMain(); }
+      IMPORT_PREVIEW = null;
+      if(entry.tabs){
+        // Re-open the tab you were last on in this module.
+        if(isActive) return;
+        const last = entry.tabs.find(t=>t.route===VIEW.lastBusTab);
+        VIEW.route = (last || entry.tabs[0]).route;
+      } else VIEW.route = entry.route;
+      renderShell();
+      if(entry.route === 'admins' && window.GoStatementLive){ await cloudLoadDirectory(); renderMain(); }
     });
     group.appendChild(btn);
   }
-  nav.appendChild(group);
 
   if(actor.type === 'admin' && VIEW.viewingAsOperatorId){
     const back = el(`<button class="nav-item" style="background:var(--accent-soft); color:var(--accent); margin-top:4px;">${icon('<path d="M15 18l-6-6 6-6"/>')}<span>Back to Admin</span></button>`);
@@ -4707,7 +4774,14 @@ function renderMain(){
     else html = adminOverviewHtml();
   }
 
-  main.innerHTML = html;
+  if(BUS_ROUTES.includes(VIEW.route)) VIEW.lastBusTab = VIEW.route;
+  main.innerHTML = busTabBarHtml(actor) + html;
+  const subnav = main.querySelector('.subnav-tabs');
+  if(subnav) subnav.addEventListener('click', e=>{
+    const b = e.target.closest('[data-subroute]');
+    if(!b || b.dataset.subroute === VIEW.route) return;
+    IMPORT_PREVIEW = null; VIEW.route = b.dataset.subroute; renderShell();
+  });
   if(VIEW.route === 'entry' && document.getElementById('importPreviewWrap')){
     document.getElementById('importPreviewWrap').innerHTML = importPreviewHtml();
   }
