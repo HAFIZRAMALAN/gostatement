@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GoStatement Ferry</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b4f8a'/%3E%3Cpath d='M6 19h20l-3 5H9zM10 19v-5h12v5M13 14v-3h6v3' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{--bg:#f3f6fa;--card:#fff;--ink:#14202e;--mute:#5d6b7c;--line:#dfe6ee;--pri:#0b4f8a;--pri2:#e6f0fa;--ok:#13795b;--okbg:#e3f5ee;--warn:#9a5b00;--warnbg:#fff3dc;--bad:#b3261e;--badbg:#fde8e6;--mer:#0b6bcb;--tg:#7a3fc4}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0e1620;--card:#16212e;--ink:#e6edf5;--mute:#9aa9ba;--line:#273547;--pri:#5aa7ef;--pri2:#173049;--ok:#4cc9a0;--okbg:#12342b;--warn:#f0b34d;--warnbg:#3a2c10;--bad:#ff8a80;--badbg:#3d1b18;--mer:#5aa7ef;--tg:#b78cf0}}
+*{box-sizing:border-box}html,body{margin:0}body{background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,select{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+aside{background:var(--card);border-right:1px solid var(--line);padding:16px 12px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;gap:10px;align-items:center;padding:4px 8px 14px;font-weight:700;font-size:15px}
+.brand i{width:30px;height:30px;border-radius:8px;background:var(--pri);display:grid;place-items:center;color:#fff;font-style:normal}
+.brand small{display:block;font-weight:500;color:var(--mute);font-size:11px}
+.nav button{display:flex;width:100%;gap:10px;align-items:center;text-align:left;background:none;border:0;padding:9px 10px;border-radius:8px;cursor:pointer;color:var(--mute);font-weight:600}
+.nav button:hover{background:var(--pri2)}.nav button.on{background:var(--pri2);color:var(--pri)}
+.side-foot{margin-top:auto;font-size:12px;color:var(--mute);padding:8px}
+main{padding:20px 24px 60px;max-width:1500px;width:100%}
+h1{font-size:20px;margin:0 0 4px}h2{font-size:15px;margin:0 0 10px}
+.sub{color:var(--mute);margin:0 0 16px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.grid{display:grid;gap:12px}.g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
+.kpi .l{color:var(--mute);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}.kpi .v{font-size:22px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}.kpi .s{font-size:12px;color:var(--mute);margin-top:2px}
+.btn{background:var(--pri);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}.btn:hover{filter:brightness(1.08)}.btn:disabled{opacity:.5;cursor:default}
+.btn.ghost{background:transparent;color:var(--pri);border:1px solid var(--line)}.btn.sm{padding:5px 10px;font-size:12px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+input[type=text],input[type=number],input[type=date],input[type=month],input[type=email],input[type=password],select{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mute);font-weight:600}
+.tw{overflow:auto;border:1px solid var(--line);border-radius:10px;max-height:70vh}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;font-size:13px}
+th{background:var(--pri2);position:sticky;top:0;z-index:1;font-size:12px}
+td:first-child,th:first-child,td:nth-child(2),th:nth-child(2){text-align:left}
+tr.tot td{font-weight:700;background:var(--pri2);position:sticky;bottom:0}
+tr.we td:first-child,tr.we td:nth-child(2){color:var(--bad)}
+td input{width:78px;text-align:right;padding:3px 6px;border-radius:6px}
+td.neg{color:var(--bad)}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700}
+.pill.ok{background:var(--okbg);color:var(--ok)}.pill.warn{background:var(--warnbg);color:var(--warn)}.pill.bad{background:var(--badbg);color:var(--bad)}
+.mer{color:var(--mer)}.tg{color:var(--tg)}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:34px;text-align:center;cursor:pointer;background:var(--card)}
+.drop.over,.drop:hover{border-color:var(--pri);background:var(--pri2)}
+.toast{position:fixed;right:16px;bottom:16px;background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:10px;z-index:99;max-width:360px;box-shadow:0 6px 24px #0004}
+.modal{position:fixed;inset:0;background:#0008;display:grid;place-items:center;z-index:50;padding:16px}.modal>div{background:var(--card);border-radius:14px;padding:20px;width:min(420px,100%)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}.seg button{background:var(--card);border:0;padding:7px 14px;cursor:pointer;font-weight:600;color:var(--mute)}.seg button.on{background:var(--pri);color:#fff}
+.stat{display:flex;gap:6px;align-items:center;font-size:12px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--warn)}.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}
+.hide{display:none!important}
+@media(max-width:900px){.app{grid-template-columns:1fr}aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}.brand{padding:0 8px}.side-foot{display:none}.nav{display:flex;flex-wrap:wrap}main{padding:14px 16px 60px}.g4,.g3{grid-template-columns:1fr 1fr}.g2{grid-template-columns:1fr}}
+@media(max-width:520px){.g4,.g3{grid-template-columns:1fr}}
+
+
+/* embedded inside GoStatement: top tab bar instead of side bar */
+body.embed .app{grid-template-columns:1fr}
+body.embed aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;border-right:0;border:1px solid var(--line);border-radius:12px;margin:0 0 4px;padding:8px 12px}
+body.embed .brand{padding:0 12px 0 0}body.embed .nav{display:flex;flex-wrap:wrap;gap:2px}body.embed .nav button{width:auto}
+body.embed .side-foot{margin:0 0 0 auto;display:flex;gap:10px;align-items:center;padding:0}
+body.embed .side-foot>div:last-child{display:none}
+body.embed main{padding:12px 4px 60px}body.embed{background:transparent}
+
+/* ---------- INVOICE (screen + print) ---------- */
+#invoiceHost{background:#d9dee5;padding:16px;border-radius:12px}
+.inv{background:#fff;color:#000;width:210mm;min-height:297mm;margin:0 auto 16px;padding:12mm 13mm;font:11px/1.4 Arial,Helvetica,sans-serif;position:relative;box-shadow:0 2px 12px #0003;page-break-after:always}
+.inv *{color:#000}
+.inv .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0b4f8a;padding-bottom:8px;margin-bottom:8px}
+.inv .co b{font-size:14px;color:#0b4f8a}.inv .co div{font-size:10px}
+.inv .ttl{font-size:18px;font-weight:700;color:#0b4f8a;text-align:right}
+.inv .two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:8px 0}
+.inv table.k{width:100%;border-collapse:collapse}.inv table.k td{border:0;padding:1.5px 0;text-align:left;font-size:10.5px;white-space:normal;vertical-align:top}.inv table.k td:first-child{width:36%;color:#333!important;font-weight:600}
+.inv table.it{width:100%;border-collapse:collapse;margin-top:10px}
+.inv table.it th{background:#0b4f8a;color:#fff!important;text-align:right;padding:5px 6px;font-size:10px;position:static}
+.inv table.it th *{color:#fff!important}
+.inv table.it th:nth-child(1),.inv table.it th:nth-child(2),.inv table.it th:nth-child(3){text-align:left}
+.inv table.it td{border-bottom:1px solid #ccc;padding:5px 6px;font-size:10.5px;white-space:normal}
+.inv table.it td:nth-child(1),.inv table.it td:nth-child(2),.inv table.it td:nth-child(3){text-align:left}
+.inv .sum{margin-left:auto;width:62%;margin-top:6px}.inv .sum table{width:100%;border-collapse:collapse}.inv .sum td{border:0;padding:3px 6px;font-size:11px}.inv .sum tr.g td{font-weight:700;border-top:1.5px solid #000;font-size:12px}
+.inv .words{margin-top:8px;font-weight:700;font-size:11px}
+.inv .box{border:1px solid #9bb4cf;background:#f4f8fc;border-radius:4px;padding:8px 10px;margin-top:10px}
+.inv .box h4{margin:0 0 5px;font-size:11px;color:#0b4f8a}
+.inv .box table{width:100%;border-collapse:collapse}.inv .box td{border:0;padding:2px 0;font-size:10.5px;white-space:normal}.inv .box td:last-child{text-align:right;font-variant-numeric:tabular-nums}.inv .box tr.g td{font-weight:700;border-top:1px solid #6b8fb4;padding-top:4px}
+.inv .notes{font-size:10px;margin-top:10px}
+.inv .ft{position:absolute;left:13mm;right:13mm;bottom:9mm;font-size:9.5px;display:flex;justify-content:space-between;border-top:1px solid #bbb;padding-top:4px;color:#444}
+.inv .an{width:100%;border-collapse:collapse;margin-top:6px}.inv .an th{background:#0b4f8a;color:#fff!important;padding:3px 4px;font-size:9px;position:static;text-align:right}.inv .an th:first-child{text-align:left}
+.inv .an td{border-bottom:1px solid #ddd;padding:2px 4px;font-size:9.5px;text-align:right}.inv .an td:first-child{text-align:left}.inv .an tr.t td{font-weight:700;border-top:1.5px solid #000;background:#eef3f9}
+@media print{
+ @page{size:A4;margin:0}
+ body{background:#fff}.app>aside,main>*:not(#invoiceHostWrap){display:none!important}
+ main{padding:0;max-width:none}#invoiceHostWrap{display:block!important}#invoiceHost{background:none;padding:0;border-radius:0}
+ .inv{box-shadow:none;margin:0;width:210mm;height:297mm;overflow:hidden}.toast,.modal{display:none!important}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <div class="brand"><i>⛴</i><div>GoStatement Ferry<small>Mersing · Tanjung Gemok</small></div></div>
+  <div class="nav" id="nav">
+    <button data-p="dash" class="on">📊 Dashboard</button>
+    <button data-p="data">🗓 Daily Data</button>
+    <button data-p="up">⬆ Upload Excel</button>
+    <button data-p="inv">🧾 Invoices</button>
+    <button data-p="set">⚙ Settings</button>
+  </div>
+  <div class="side-foot"><div class="stat" id="syncStat"></div><div style="margin-top:6px"><button class="btn ghost sm" id="btnAuth">Login</button></div><div style="margin-top:8px">NSS IT Solution Sdn Bhd</div></div>
+</aside>
+<main id="main"></main>
+</div>
+<div id="invoiceHostWrap" class="hide"><div id="invoiceHost"></div></div>
+<div id="modalHost"></div><div id="toastHost"></div>
+
+<script>
+'use strict';
+/* =========================================================
+   GoStatement Ferry — Mersing & Tanjung Gemok settlement
+   Data model: DATA["STATION|YYYY-MM-DD"] = {t,a,u}
+     t = online tickets, a = online ticket sales (RM), u = agent tickets
+   Everything else (processing fee, commission, MDR, SST, net) is DERIVED.
+   Saved to Supabase (ferry_daily) when logged in; always mirrored to localStorage.
+   ========================================================= */
+const SB_URL='https://lckfotvteyrzyasqmygh.supabase.co', SB_KEY='sb_publishable__f3XxH7pJU0ANmGE9RmvVg_Xpphi1n_';
+const STATIONS={MERSING:{name:'MERSING',cls:'mer'},TG_GEMOK:{name:'TANJUNG GEMOK',cls:'tg'}};
+const SK=Object.keys(STATIONS);
+const DEF_CFG={
+  rates:{commission:2,sst:0.08,mdr:0.028,proc:0.03,payoutDays:7},
+  supplier:{name:'NSS IT SOLUTION SDN BHD (964550-P)',sst:'W24-1808-31024948',tin:'C22697483090',reg:'964550-P [201101036416]',msic:'62099',email:'e-invoicing@gohub.com.my',
+    addr:'UNIT 11-G-01, CORPORATE PARK, STAR CENTRAL, LINGKARAN CYBER POINT TIMUR, CYBER 12, 63000 CYBERJAYA, SELANGOR.',tel:'Tel: +603-8322 7555 Fax: +603-8322 7666',
+    bankName:'Maybank Islamic Berhad',bankAcc:'562142422721',bankHolder:'NSS IT Solution Sdn. Bhd.'},
+  stations:{
+    MERSING:{buyer:'BISTARI GEMILANG TRAVEL SDN BHD',email:'bluewater_express@yahoo.com',tin:'',reg:'',addr:'',contact:'',prefix:'FRY-MSG',payee:'PAYMENT BOOKING MERSING',bank:'Public Bank',acc:'3196121409'},
+    TG_GEMOK:{buyer:'BISTARI GEMILANG SHIPPING SDN BHD',email:'bluewaterexpress01@gmail.com',tin:'',reg:'',addr:'',contact:'',prefix:'FRY-TGM',payee:'PAYMENT BOOKING TG GEMUK',bank:'Public Bank',acc:'3813442824'}
+  }
+};
+let CFG=load('gsf_cfg',null)||JSON.parse(JSON.stringify(DEF_CFG));
+CFG=deepMerge(JSON.parse(JSON.stringify(DEF_CFG)),CFG);
+let DATA=load('gsf_data',{});
+let DIRTY=new Set(load('gsf_dirty',[]));
+let UI={page:'dash',month:null,invMode:'daily',invStation:'BOTH',invDate:null,staged:null,session:null};
+let sb=null;
+if(/[?&]embed=1/.test(location.search))document.body.classList.add('embed');
+
+/* ---------- utils ---------- */
+function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){console.error(e)}}
+function deepMerge(a,b){for(const k in b){if(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])){a[k]=deepMerge(a[k]||{},b[k])}else a[k]=b[k]}return a}
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const r2=n=>Math.round((n+Number.EPSILON)*100)/100;
+const fmt=n=>(n||0).toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtN=n=>(n||0).toLocaleString('en-MY');
+const pad=n=>String(n).padStart(2,'0');
+const dmy=iso=>{const[p,m,d]=iso.split('-');return `${d}/${m}/${p}`};
+const keyOf=(s,d)=>s+'|'+d;
+function toast(msg,ms=3500){const t=document.createElement('div');t.className='toast';t.textContent=msg;$('#toastHost').appendChild(t);setTimeout(()=>t.remove(),ms)}
+const addDays=(iso,n)=>{const d=new Date(iso+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
+const dow=iso=>new Date(iso+'T00:00:00Z').getUTCDay();
+const DOWN=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const monthOf=iso=>iso.slice(0,7);
+const daysInMonth=ym=>{const[y,m]=ym.split('-').map(Number);return new Date(Date.UTC(y,m,0)).getUTCDate()};
+const MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const monthLabel=ym=>{const[y,m]=ym.split('-').map(Number);return MN[m-1]+' '+y};
+const todayISO=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
+
+/* ---------- settlement maths (matches the Excel master exactly) ---------- */
+function calc(rec){
+  const R=CFG.rates,t=+rec.t||0,a=+rec.a||0,u=+rec.u||0;
+  // MDR is the ACTUAL fee reported by the payment gateway when present (it can differ by a sen from 2.8%);
+  // when not supplied it falls back to 2.8% of the total online amount.
+  const B=r2(a*R.proc),C=r2(a+B),D=r2(t*R.commission),E=r2(D*R.sst);
+  const hasM=rec.m!==undefined&&rec.m!==null&&rec.m!=='';const F=hasM?r2(Math.abs(+rec.m)):r2(C*R.mdr),G=r2(F*R.sst);
+  const H=r2(C-D-E-F-G),J=r2(u*R.commission),K=r2(J*R.sst),L=r2(J+K),M=r2(H-L);
+  return{t,a,u,B,C,D,E,F,G,H,J,K,L,M,charges:r2(D+E+F+G+L)};
+}
+function sumCalc(list){const z={t:0,a:0,u:0,B:0,C:0,D:0,E:0,F:0,G:0,H:0,J:0,K:0,L:0,M:0,charges:0};for(const c of list)for(const k in z)z[k]=r2(z[k]+c[k]);return z}
+function rowsFor(station,from,to){const out=[];for(const k in DATA){const[s,d]=k.split('|');if(s===station&&d>=from&&d<=to)out.push({date:d,...calc(DATA[k])})}return out.sort((x,y)=>x.date<y.date?-1:1)}
+function allDates(){return[...new Set(Object.keys(DATA).map(k=>k.split('|')[1]))].sort()}
+
+/* ---------- persistence ---------- */
+function persistLocal(){save('gsf_data',DATA);save('gsf_dirty',[...DIRTY]);save('gsf_cfg',CFG)}
+function setSync(){
+  const el=$('#syncStat');const n=DIRTY.size;
+  if(!sb){el.innerHTML='<span class="dot bad"></span>Cloud not available';return}
+  if(!UI.session){el.innerHTML='<span class="dot bad"></span>Local only — login to save to cloud'+(n?` (${n} unsynced)`:'');$('#btnAuth').textContent='Login';return}
+  el.innerHTML=n?`<span class="dot"></span>${n} unsynced`:'<span class="dot ok"></span>Saved to cloud';$('#btnAuth').textContent='Logout';
+}
+async function cloudPush(keys){
+  if(!sb||!UI.session||!keys.length)return{ok:false,saved:0};
+  const rows=keys.filter(k=>DATA[k]).map(k=>{const[s,d]=k.split('|');const r=DATA[k];return{station:s,entry_date:d,tickets:+r.t||0,sales:+r.a||0,agent_tickets:+r.u||0,mdr:(r.m===undefined||r.m===null||r.m==='')?null:+r.m,source:r.src||'app'}});
+  let saved=0;
+  for(let i=0;i<rows.length;i+=400){
+    const chunk=rows.slice(i,i+400);
+    const{data,error}=await sb.from('ferry_daily').upsert(chunk,{onConflict:'station,entry_date'}).select('station,entry_date');
+    if(error){toast('Cloud save failed: '+error.message,6000);return{ok:false,saved}}
+    if(!data||data.length<chunk.length){toast('Cloud only saved '+(data?data.length:0)+' of '+chunk.length+' rows — check admin access',7000);return{ok:false,saved:saved+(data?data.length:0)}}
+    saved+=data.length;chunk.forEach(r=>DIRTY.delete(keyOf(r.station,r.entry_date)));
+  }
+  persistLocal();setSync();return{ok:true,saved};
+}
+async function cloudDelete(key){
+  if(!sb||!UI.session)return true;const[s,d]=key.split('|');
+  const{data,error}=await sb.from('ferry_daily').delete().eq('station',s).eq('entry_date',d).select('station');
+  if(error){toast('Cloud delete failed: '+error.message,6000);return false}return true;
+}
+async function cloudPull(){
+  if(!sb||!UI.session)return;
+  let all=[],from=0;
+  for(;;){
+    const{data,error}=await sb.from('ferry_daily').select('station,entry_date,tickets,sales,agent_tickets,mdr').order('entry_date').range(from,from+999);
+    if(error){toast('Cloud load failed: '+error.message,6000);return}
+    all=all.concat(data);if(data.length<1000)break;from+=1000;
+  }
+  const remote={};for(const r of all)remote[keyOf(r.station,r.entry_date)]={t:r.tickets,a:+r.sales,u:r.agent_tickets,m:r.mdr===null?null:+r.mdr};
+  for(const k in DATA)if(!DIRTY.has(k)&&!remote[k])delete DATA[k]; // removed elsewhere
+  for(const k in remote)if(!DIRTY.has(k))DATA[k]=remote[k];
+  const{data:st}=await sb.from('ferry_settings').select('value').eq('key','config').maybeSingle();
+  if(st&&st.value&&Object.keys(st.value).length)CFG=deepMerge(JSON.parse(JSON.stringify(DEF_CFG)),st.value);
+  persistLocal();
+}
+async function saveCfg(){
+  persistLocal();
+  if(sb&&UI.session){const{data,error}=await sb.from('ferry_settings').upsert({key:'config',value:CFG,updated_at:new Date().toISOString()},{onConflict:'key'}).select('key');
+    if(error||!data||!data.length)toast('Settings saved locally only: '+(error?error.message:'no access'),6000);else toast('Settings saved to cloud')}
+  else toast('Settings saved on this device (login to sync)')
+}
+async function setRecord(station,date,rec,src){
+  const k=keyOf(station,date);DATA[k]={t:+rec.t||0,a:+rec.a||0,u:+rec.u||0,m:(rec.m===undefined||rec.m===null||rec.m==='')?null:+rec.m,src};DIRTY.add(k);persistLocal();
+  const r=await cloudPush([k]);setSync();return r;
+}
+
+/* ---------- auth ---------- */
+function initSb(){
+  try{sb=window.supabase.createClient(SB_URL,SB_KEY)}catch(e){sb=null;console.error(e)}
+  if(!sb){setSync();return}
+  sb.auth.getSession().then(async({data})=>{UI.session=data.session;if(UI.session)await afterLogin();setSync();render()});
+  sb.auth.onAuthStateChange((ev,s)=>{UI.session=s;setSync()});
+}
+async function afterLogin(){
+  const keys=[...DIRTY];if(keys.length){const r=await cloudPush(keys);if(r.ok)toast(`Pushed ${r.saved} offline row(s) to cloud`)}
+  await cloudPull();setSync();
+}
+function openAuth(){
+  if(UI.session){sb.auth.signOut().then(()=>{UI.session=null;setSync();toast('Logged out')});return}
+  $('#modalHost').innerHTML=`<div class="modal"><div><h2>Admin login (cloud)</h2><p class="sub">Use your GoStatement admin account.</p>
+  <div class="grid" style="gap:10px"><label class="f">Email<input type="email" id="lgE" autocomplete="username"></label>
+  <label class="f">Password<input type="password" id="lgP" autocomplete="current-password"></label>
+  <div id="lgErr" class="pill bad hide"></div>
+  <div class="row"><button class="btn" id="lgGo">Login</button><button class="btn ghost" id="lgX">Cancel</button></div></div></div></div>`;
+  $('#lgX').onclick=()=>$('#modalHost').innerHTML='';
+  const go=async()=>{const b=$('#lgGo');b.disabled=true;const{error}=await sb.auth.signInWithPassword({email:$('#lgE').value.trim(),password:$('#lgP').value});
+    if(error){const e=$('#lgErr');e.textContent=error.message;e.classList.remove('hide');b.disabled=false;return}
+    $('#modalHost').innerHTML='';const{data}=await sb.auth.getSession();UI.session=data.session;await afterLogin();toast('Logged in — data synced');render()};
+  $('#lgGo').onclick=go;$('#lgP').onkeydown=e=>{if(e.key==='Enter')go()};$('#lgE').focus();
+}
+
+/* ---------- Excel import ---------- */
+function serialToISO(n){return new Date(Math.round((n-25569)*86400)*1000).toISOString().slice(0,10)}
+function parseWorkbook(wb){
+  const out=[],notes=[];
+  for(const name of wb.SheetNames){
+    const ws=wb.Sheets[name];const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+    let hr=-1;for(let i=0;i<Math.min(rows.length,15);i++){if(String(rows[i][0]||'').trim().toUpperCase()==='DAY'){hr=i;break}}
+    if(hr<0)continue;
+    const hdr=rows[hr];const cols={};
+    hdr.forEach((c,j)=>{const s=String(c||'').trim().toUpperCase();if(s==='MERSING')cols.MERSING=j;if(s==='TANJUNG GEMOK'||s==='TG GEMOK'||s==='TANJUNG GEMUK')cols.TG_GEMOK=j});
+    if(cols.MERSING==null&&cols.TG_GEMOK==null)continue;
+    let n=0;
+    for(let i=hr+1;i<rows.length;i++){
+      const r=rows[i];const dv=r[1];if(typeof dv!=='number'||dv<40000)continue;const date=serialToISO(dv);
+      for(const s of SK){const c0=cols[s];if(c0==null)continue;
+        const t=r[c0],a=r[c0+1],u=r[c0+9],m=r[c0+6];
+        if(typeof t!=='number'&&typeof a!=='number'&&typeof u!=='number')continue;
+        out.push({station:s,date,t:+t||0,a:+a||0,u:+u||0,m:typeof m==='number'?Math.abs(m):null});n++}
+    }
+    notes.push(`${name}: ${n} station-days`);
+  }
+  return{rows:out,notes};
+}
+async function handleFile(file){
+  try{
+    const buf=await file.arrayBuffer();const wb=XLSX.read(buf,{type:'array'});
+    const{rows,notes}=parseWorkbook(wb);
+    if(!rows.length){toast('No daily sales found. Expected the monthly tabs (e.g. 2610) with DAY / MERSING / TANJUNG GEMOK headers.',7000);return}
+    for(const r of rows){const old=DATA[keyOf(r.station,r.date)];r.status=!old?'new':(old.t===r.t&&+old.a===r.a&&old.u===r.u&&(old.m??null)===(r.m??null)?'same':'update')}
+    UI.staged={file:file.name,rows,notes};render();
+  }catch(e){console.error(e);toast('Could not read file: '+e.message,6000)}
+}
+async function confirmImport(){
+  const st=UI.staged;if(!st)return;const todo=st.rows.filter(r=>r.status!=='same');
+  const b=$('#btnImp');if(b){b.disabled=true;b.textContent='Saving…'}
+  const keys=[];for(const r of todo){const k=keyOf(r.station,r.date);DATA[k]={t:r.t,a:r.a,u:r.u,m:r.m,src:'excel'};DIRTY.add(k);keys.push(k)}
+  persistLocal();
+  let msg;
+  if(UI.session){const res=await cloudPush(keys);msg=res.ok?`Imported ${todo.length} row(s) and SAVED TO CLOUD ✔`:`Imported locally but cloud saved only ${res.saved}/${todo.length} — see error above`}
+  else msg=`Imported ${todo.length} row(s) on this device only. Login to save to cloud.`;
+  toast(msg,6000);
+  const dates=[...new Set(st.rows.map(r=>r.date))].sort();
+  UI.lastImport={from:dates[0],to:dates[dates.length-1]};UI.staged=null;UI.month=monthOf(dates[dates.length-1]);setSync();render();
+}
+
+/* ---------- number → words ---------- */
+function words(n){
+  const o=['','ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','TEN','ELEVEN','TWELVE','THIRTEEN','FOURTEEN','FIFTEEN','SIXTEEN','SEVENTEEN','EIGHTEEN','NINETEEN'];
+  const t=['','','TWENTY','THIRTY','FORTY','FIFTY','SIXTY','SEVENTY','EIGHTY','NINETY'];
+  const h=x=>{let s='';if(x>=100){s+=o[Math.floor(x/100)]+' HUNDRED';x%=100;if(x)s+=' AND '}if(x>=20){s+=t[Math.floor(x/10)];if(x%10)s+=' '+o[x%10]}else if(x)s+=o[x];return s};
+  const conv=x=>{if(x===0)return'ZERO';let s='';const parts=[[1e9,'BILLION'],[1e6,'MILLION'],[1e3,'THOUSAND']];for(const[v,l]of parts){if(x>=v){s+=conv(Math.floor(x/v))+' '+l+' ';x%=v}}if(x)s+=h(x);return s.trim()};
+  const tot=Math.round(n*100);const rm=Math.floor(tot/100),sen=tot%100;
+  return 'RINGGIT MALAYSIA '+conv(rm)+(sen?' AND SEN '+conv(sen):'')+' ONLY';
+}
+
+/* ---------- invoice builder ---------- */
+function weekRange(iso){const d=dow(iso);const mon=addDays(iso,d===0?-6:1-d);return[mon,addDays(mon,6)]}
+function periodFor(mode,date){
+  if(mode==='daily')return{from:date,to:date,label:dmy(date)};
+  if(mode==='weekly'){const[f,t]=weekRange(date);return{from:f,to:t,label:`${dmy(f)} - ${dmy(t)}`}}
+  if(mode==='monthly'){const ym=monthOf(date);const f=ym+'-01',t=ym+'-'+pad(daysInMonth(ym));return{from:f,to:t,label:monthLabel(ym)}}
+  return null;
+}
+function invNo(station,mode,p){
+  const pre=CFG.stations[station].prefix;const c=s=>s.replace(/-/g,'');
+  if(mode==='daily')return `${pre}-${c(p.from)}`;
+  if(mode==='weekly')return `${pre}-W${c(p.from)}`;
+  if(mode==='monthly')return `${pre}-M${c(p.from).slice(0,6)}`;
+  return `${pre}-${c(p.from)}-${c(p.to)}`;
+}
+function buildInvoice(station,mode,p){
+  const rows=rowsFor(station,p.from,p.to);if(!rows.length)return null;
+  const S=sumCalc(rows),R=CFG.rates,C=CFG.stations[station],P=CFG.supplier;
+  const dotp=`${p.from.split('-').reverse().join('.')}-${p.to.split('-').reverse().join('.')}`;
+  const stn=STATIONS[station].name;
+  const lines=[
+    {d:`${stn} — ONLINE TICKET COMMISSION (RM${fmt(R.commission)}/ticket)`,q:S.t,up:R.commission,tax:S.E,tot:r2(S.D+S.E),base:S.D},
+    {d:`${stn} — AGENT TICKET COMMISSION (RM${fmt(R.commission)}/ticket)`,q:S.u,up:R.commission,tax:S.K,tot:S.L,base:S.J},
+    {d:`${stn} — PAYMENT GATEWAY (MDR) FEE on online collection RM${fmt(S.C)}`,q:1,up:S.F,tax:S.G,tot:r2(S.F+S.G),base:S.F}
+  ];
+  const excl=r2(S.D+S.J+S.F),tax=r2(S.E+S.K+S.G),incl=r2(excl+tax);
+  const payout=addDays(p.to,R.payoutDays);
+  const showAnnex=mode!=='daily'&&rows.length>1;
+  return{station,mode,p,rows,S,lines,excl,tax,incl,no:invNo(station,mode,p),dotp,stn,C,P,payout,showAnnex,R};
+}
+function invoiceHtml(v){
+  const{S,C,P,R}=v;
+  const dateTime=todayISO().split('-').reverse().join('/');
+  const typeLbl={daily:'DAILY',weekly:'WEEKLY',monthly:'MONTHLY',custom:'PERIOD'}[v.mode];
+  return `<section class="inv">
+  <div class="hd"><div class="co"><b>${esc(P.name)}</b><div>Service Tax No : ${esc(P.sst)}</div><div>${esc(P.addr)}</div><div>${esc(P.tel)}</div><div>TIN No : ${esc(P.tin)}</div></div>
+  <div><div class="ttl">E-INVOICE</div><div style="text-align:right;font-size:10px">${typeLbl} SETTLEMENT — ${esc(v.stn)}</div></div></div>
+  <div class="two">
+   <table class="k"><tr><td>Supplier TIN</td><td>: ${esc(P.tin)}</td></tr><tr><td>Supplier Registration No.</td><td>: ${esc(P.reg)}</td></tr><tr><td>Supplier SST ID</td><td>: ${esc(P.sst)}</td></tr><tr><td>Supplier MSIC Code</td><td>: ${esc(P.msic)}</td></tr><tr><td>Supplier Email</td><td>: ${esc(P.email)}</td></tr></table>
+   <table class="k"><tr><td>Invoice No.</td><td>: <b>${esc(v.no)}</b></td></tr><tr><td>Invoice Date</td><td>: ${dateTime}</td></tr><tr><td>Settlement Period</td><td>: ${esc(v.p.label)}</td></tr><tr><td>Payout Date (T+${R.payoutDays})</td><td>: ${dmy(v.payout)}</td></tr><tr><td>Currency Code</td><td>: MYR</td></tr></table>
+  </div>
+  <div class="two">
+   <table class="k"><tr><td>Buyer Name</td><td>: <b>${esc(C.buyer)}</b></td></tr><tr><td>Buyer TIN</td><td>: ${esc(C.tin||'-')}</td></tr><tr><td>Buyer Registration No.</td><td>: ${esc(C.reg||'-')}</td></tr><tr><td>Buyer Address</td><td>: ${esc(C.addr||'-')}</td></tr></table>
+   <table class="k"><tr><td>Buyer Email</td><td>: ${esc(C.email)}</td></tr><tr><td>Buyer Contact No.</td><td>: ${esc(C.contact||'-')}</td></tr><tr><td>Station</td><td>: ${esc(v.stn)}</td></tr></table>
+  </div>
+  <table class="it"><thead><tr><th>ITEM</th><th>TAX CLASS.</th><th>DESCRIPTION</th><th>QUANTITY</th><th>U.PRICE (RM)</th><th>SERVICE TAX (8%)</th><th>TOTAL (RM)</th></tr></thead><tbody>
+   <tr><td></td><td>022</td><td><b>SETTLEMENT CHARGES (${esc(v.dotp)})</b></td><td></td><td></td><td></td><td></td></tr>
+   ${v.lines.map((l,i)=>`<tr><td>${i+1}.</td><td>022</td><td>${esc(l.d)}</td><td style="text-align:right">${fmtN(l.q)}</td><td style="text-align:right">${fmt(l.q?r2(l.base/(l.q||1)):l.up)}</td><td style="text-align:right">${fmt(l.tax)}</td><td style="text-align:right">${fmt(l.tot)}</td></tr>`).join('')}
+  </tbody></table>
+  <div class="words">${esc(words(v.incl))}</div>
+  <div class="sum"><table><tr><td>TOTAL EXCL. TAX (RM)</td><td style="text-align:right">${fmt(v.excl)}</td></tr><tr><td>SERVICE TAX @ ${(R.sst*100).toFixed(0)}%</td><td style="text-align:right">${fmt(v.tax)}</td></tr><tr class="g"><td>TOTAL INCL. TAX (RM)</td><td style="text-align:right">${fmt(v.incl)}</td></tr></table></div>
+  <div class="box"><h4>SETTLEMENT STATEMENT — ${esc(v.stn)} · ${esc(v.p.label)}</h4><table>
+   <tr><td>Online ticket sales (${fmtN(S.t)} tickets)</td><td>${fmt(S.a)}</td></tr>
+   <tr><td>Add: Processing fee ${(R.proc*100).toFixed(0)}%</td><td>${fmt(S.B)}</td></tr>
+   <tr><td><b>Total online collection</b></td><td><b>${fmt(S.C)}</b></td></tr>
+   <tr><td>Less: Online commission incl. SST</td><td>(${fmt(r2(S.D+S.E))})</td></tr>
+   <tr><td>Less: MDR fee incl. SST</td><td>(${fmt(r2(S.F+S.G))})</td></tr>
+   <tr><td>Less: Agent commission incl. SST (${fmtN(S.u)} tickets)</td><td>(${fmt(S.L)})</td></tr>
+   <tr class="g"><td>${S.M<0?'NET AMOUNT DUE TO NSS (RM) — charges exceed online collection':'NET PAYABLE TO OPERATOR (RM)'}</td><td>${fmt(Math.abs(S.M))}</td></tr></table>
+   <div style="margin-top:6px;font-size:10px"><b>Payment to:</b> ${esc(C.payee)} · ${esc(C.buyer)} · ${esc(C.bank)}: ${esc(C.acc)}</div></div>
+  <div class="notes"><b>Notes :</b><br>1. Charges above are deducted from online collection; net payable is paid via bank transfer to the operator account stated.<br>
+   &nbsp;&nbsp;&nbsp;Account Name : ${esc(P.bankHolder)} &nbsp;|&nbsp; Banker Name : ${esc(P.bankName)} &nbsp;|&nbsp; Account Number : ${esc(P.bankAcc)} (for any amount payable to NSS)<br>
+   2. Interest of 1% per month will be charged if payment is not received by the due date.<br>3. This document is a visual presentation of the e-invoice.</div>
+  ${v.showAnnex?annexHtml(v):''}
+  <div class="ft"><span>${esc(v.no)}</span><span>Generated by GoStatement Ferry</span></div></section>`;
+}
+function annexHtml(v){
+  const rows=v.rows,S=v.S;
+  return `<div class="box" style="background:#fff"><h4>DAILY BREAKDOWN</h4><table class="an"><thead><tr><th>Date</th><th>Tickets</th><th>Sales</th><th>Total Amt</th><th>Comm.+SST</th><th>MDR+SST</th><th>Agent T.</th><th>Agent+SST</th><th>Net Payable</th></tr></thead><tbody>
+  ${rows.map(r=>`<tr><td>${dmy(r.date)} ${DOWN[dow(r.date)].slice(0,3)}</td><td>${fmtN(r.t)}</td><td>${fmt(r.a)}</td><td>${fmt(r.C)}</td><td>${fmt(r2(r.D+r.E))}</td><td>${fmt(r2(r.F+r.G))}</td><td>${fmtN(r.u)}</td><td>${fmt(r.L)}</td><td>${fmt(r.M)}</td></tr>`).join('')}
+  <tr class="t"><td>TOTAL</td><td>${fmtN(S.t)}</td><td>${fmt(S.a)}</td><td>${fmt(S.C)}</td><td>${fmt(r2(S.D+S.E))}</td><td>${fmt(r2(S.F+S.G))}</td><td>${fmtN(S.u)}</td><td>${fmt(S.L)}</td><td>${fmt(S.M)}</td></tr></tbody></table></div>`;
+}
+function genInvoices(station,mode,date,customTo){
+  const out=[];const sts=station==='BOTH'?SK:[station];
+  const p=mode==='custom'?{from:date,to:customTo,label:`${dmy(date)} - ${dmy(customTo)}`}:periodFor(mode,date);
+  for(const s of sts){const v=buildInvoice(s,mode,p);if(v)out.push(v)}
+  return out;
+}
+function showInvoices(list){
+  if(!list.length){toast('No sales data for that period.');return}
+  $('#invoiceHost').innerHTML=list.map(invoiceHtml).join('');$('#invoiceHostWrap').classList.remove('hide');UI.invList=list;
+  $('#invBar')&&($('#invBar').classList.remove('hide'));
+  renderInvPreview();
+  setTimeout(()=>$('#invoiceHostWrap').scrollIntoView({behavior:'smooth',block:'start'}),50);
+}
+
+/* ---------- pages ---------- */
+function monthsAvail(){const s=new Set(Object.keys(DATA).map(k=>monthOf(k.split('|')[1])));return[...s].sort()}
+function ensureMonth(){const m=monthsAvail();if(!UI.month||(!m.includes(UI.month)&&m.length))UI.month=m.length?m[m.length-1]:todayISO().slice(0,7);if(!UI.invDate){const ds=allDates();UI.invDate=ds.length?ds[ds.length-1]:todayISO()}}
+function monthPicker(){const m=monthsAvail();if(!m.includes(UI.month))m.push(UI.month);m.sort();return `<select id="selMonth">${m.map(x=>`<option value="${x}" ${x===UI.month?'selected':''}>${monthLabel(x)}</option>`).join('')}</select>`}
+function wireMonth(){const s=$('#selMonth');if(s)s.onchange=()=>{UI.month=s.value;render()}}
+function monthSum(station,ym){return sumCalc(rowsFor(station,ym+'-01',ym+'-31'))}
+
+function pageDash(){
+  const ym=UI.month,M=monthSum('MERSING',ym),T=monthSum('TG_GEMOK',ym),all=sumCalc([M,T]);
+  const kpi=(l,v,s)=>`<div class="card kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s||''}</div></div>`;
+  const stCard=(k,S)=>`<div class="card"><h2 class="${STATIONS[k].cls}">${STATIONS[k].name}</h2><div class="grid g2" style="gap:8px">
+   ${[['Tickets (online)',fmtN(S.t)],['Online collection',fmt(S.C)],['Commission + SST',fmt(r2(S.D+S.E))],['MDR + SST',fmt(r2(S.F+S.G))],['Agent tickets',fmtN(S.u)],['Agent + SST',fmt(S.L)],['NSS total charges',fmt(S.charges)],['Net payable',fmt(S.M)]].map(([a,b])=>`<div><div class="sub" style="margin:0;font-size:12px">${a}</div><b>${b}</b></div>`).join('')}</div></div>`;
+  return `<div class="top"><div><h1>Dashboard</h1><p class="sub">${monthLabel(ym)} · all amounts in RM</p></div><div class="row">${monthPicker()}<button class="btn" data-go="up">⬆ Upload Excel</button><button class="btn ghost" data-go="inv">🧾 Make invoice</button></div></div>
+  <div class="grid g4">${kpi('Online collection',fmt(all.C),`sales ${fmt(all.a)} + 3% fee ${fmt(all.B)}`)}${kpi('Online tickets',fmtN(all.t),`+ ${fmtN(all.u)} agent tickets`)}${kpi('NSS invoice total',fmt(all.charges),'commission + MDR + agent, incl. SST')}${kpi('Net payable to operators',fmt(all.M),'after all deductions')}</div>
+  <div class="grid g2">${stCard('MERSING',M)}${stCard('TG_GEMOK',T)}</div>
+  ${allDates().length?'':'<div class="card"><b>No data yet.</b> Go to <b>Upload Excel</b> and drop the SUMMARY SALES file — it will read, save and be ready for invoices straight away.</div>'}`;
+}
+
+function pageData(){
+  const ym=UI.month,n=daysInMonth(ym);let body='';const tot={};
+  for(let d=1;d<=n;d++){
+    const iso=`${ym}-${pad(d)}`;const we=[0,6].includes(dow(iso));
+    body+=`<tr class="${we?'we':''}" data-d="${iso}"><td>${DOWN[dow(iso)].slice(0,3)}</td><td>${dmy(iso)}</td>${SK.map(s=>cells(s,iso)).join('')}<td data-c="pay">—</td></tr>`;
+  }
+  return `<div class="top"><div><h1>Daily Data</h1><p class="sub">Type directly in the blue-line boxes — saves automatically. T = online tickets, A = online sales RM, U = agent tickets.</p></div><div class="row">${monthPicker()}</div></div>
+  <div class="tw"><table><thead><tr><th rowspan="2">Day</th><th rowspan="2">Date</th><th colspan="7" class="mer">MERSING</th><th colspan="7" class="tg">TANJUNG GEMOK</th><th rowspan="2">Combined net</th></tr>
+  <tr><th>T</th><th>A (RM)</th><th>U</th><th title="Actual MDR from gateway. Blank = auto 2.8%">MDR</th><th>Charges</th><th>Net</th><th></th><th>T</th><th>A (RM)</th><th>U</th><th title="Actual MDR from gateway. Blank = auto 2.8%">MDR</th><th>Charges</th><th>Net</th><th></th></tr></thead><tbody id="dataBody">${body}</tbody>
+  <tfoot><tr class="tot" id="dataTot"></tr></tfoot></table></div>`;
+}
+function cells(s,iso){
+  const r=DATA[keyOf(s,iso)];const c=r?calc(r):null;
+  const inp=(f,step,v,ph)=>`<td><input type="number" min="0" step="${step}" data-s="${s}" data-d="${iso}" data-f="${f}" value="${v}" ${ph?`placeholder="${ph}"`:''}></td>`;
+  return inp('t',1,r?r.t:'')+inp('a',0.01,r?r.a:'')+inp('u',1,r?r.u:'')+inp('m',0.01,r&&r.m!=null?r.m:'',c?fmt(c.F):'auto')+`<td data-c="${s}ch">${c?fmt(c.charges):''}</td><td data-c="${s}net">${c?fmt(c.M):''}</td><td>${r?`<button class="btn ghost sm" data-del="${s}|${iso}" title="Delete day">✕</button>`:''}</td>`;
+}
+function refreshRow(iso){
+  const tr=document.querySelector(`#dataBody tr[data-d="${iso}"]`);if(!tr)return;
+  let pay=0,has=false;
+  for(const s of SK){const r=DATA[keyOf(s,iso)];const c=r?calc(r):null;
+    const set=(n,v)=>{const el=tr.querySelector(`[data-c="${s}${n}"]`);if(el)el.textContent=v};
+    set('ch',c?fmt(c.charges):'');set('net',c?fmt(c.M):'');if(c){pay+=c.M;has=true}
+    const mi=tr.querySelector(`input[data-s="${s}"][data-f="m"]`);if(mi)mi.placeholder=c?fmt(c.F):'auto';
+  }
+  tr.querySelector('[data-c="pay"]').textContent=has?fmt(r2(pay)):'—';
+  // delete button visibility
+  SK.forEach((s,i)=>{const td=tr.children[2+i*7+6];if(!td)return;td.innerHTML=DATA[keyOf(s,iso)]?`<button class="btn ghost sm" data-del="${s}|${iso}" title="Delete day">✕</button>`:''});
+  refreshTot();
+}
+function refreshTot(){
+  const ym=UI.month,M=monthSum('MERSING',ym),T=monthSum('TG_GEMOK',ym);const el=$('#dataTot');if(!el)return;
+  el.innerHTML=`<td>TOTAL</td><td></td><td>${fmtN(M.t)}</td><td>${fmt(M.a)}</td><td>${fmtN(M.u)}</td><td>${fmt(M.F)}</td><td>${fmt(M.charges)}</td><td>${fmt(M.M)}</td><td></td><td>${fmtN(T.t)}</td><td>${fmt(T.a)}</td><td>${fmtN(T.u)}</td><td>${fmt(T.F)}</td><td>${fmt(T.charges)}</td><td>${fmt(T.M)}</td><td></td><td>${fmt(r2(M.M+T.M))}</td>`;
+}
+function wireData(){
+  const body=$('#dataBody');if(!body)return;
+  document.querySelectorAll('#dataBody tr').forEach(tr=>{const iso=tr.dataset.d;let pay=0,has=false;for(const s of SK){const r=DATA[keyOf(s,iso)];if(r){pay+=calc(r).M;has=true}}tr.querySelector('[data-c="pay"]').textContent=has?fmt(r2(pay)):'—'});
+  refreshTot();
+  body.addEventListener('change',async e=>{
+    const i=e.target;if(!i.dataset||!i.dataset.f)return;const s=i.dataset.s,d=i.dataset.d;
+    const cur=DATA[keyOf(s,d)]||{t:0,a:0,u:0,m:null};const rec={t:cur.t,a:cur.a,u:cur.u,m:cur.m};const f=i.dataset.f;rec[f]=i.value===''?(f==='m'?null:0):+i.value;
+    if(rec[f]!==null&&(rec[f]<0||isNaN(rec[f]))){toast('Enter a number ≥ 0');return}
+    const r=await setRecord(s,d,rec,'manual');refreshRow(d);
+    if(UI.session&&r.ok)toast('Saved ✔',1200);else if(!UI.session)toast('Saved on this device — login to save to cloud',2500);
+  });
+  body.addEventListener('click',async e=>{
+    const b=e.target.closest('[data-del]');if(!b)return;const k=b.dataset.del;const[s,d]=k.split('|');
+    if(!confirm(`Delete ${STATIONS[s].name} ${dmy(d)}?`))return;
+    if(await cloudDelete(k)){delete DATA[k];DIRTY.delete(k);persistLocal();
+      const tr=document.querySelector(`#dataBody tr[data-d="${d}"]`);SK.forEach((ss,ix)=>{if(ss===s){[0,1,2,3].forEach(j=>{const inp=tr.children[2+ix*7+j].querySelector('input');if(inp){inp.value='';if(j===3)inp.placeholder='auto'}})}});refreshRow(d)}
+  });
+}
+
+function pageUp(){
+  const st=UI.staged;
+  let h=`<div class="top"><div><h1>Upload Excel</h1><p class="sub">Drop the <b>SUMMARY SALES MERSING AND TANJUNG GEMOK</b> workbook. Every monthly tab (2609, 2610 …) is read automatically; days already in the system are updated, not duplicated.</p></div></div>
+  <div class="drop" id="drop"><div style="font-size:30px">⬆</div><b>Drop .xlsx here or click to choose</b><div class="sub" style="margin:6px 0 0">Reads: No. of tickets · Ticket sales · Agent tickets per station per day. Everything else is calculated.</div><input type="file" id="fileIn" accept=".xlsx,.xls" class="hide"></div>`;
+  if(st){
+    const c={new:0,update:0,same:0};st.rows.forEach(r=>c[r.status]++);
+    const bySt=SK.map(s=>{const rr=st.rows.filter(r=>r.station===s);const S=sumCalc(rr.map(r=>calc(r)));return `<tr><td class="${STATIONS[s].cls}"><b>${STATIONS[s].name}</b></td><td>${rr.length}</td><td>${fmtN(S.t)}</td><td>${fmt(S.a)}</td><td>${fmtN(S.u)}</td><td>${fmt(S.M)}</td></tr>`}).join('');
+    h+=`<div class="card" style="margin-top:14px"><h2>Preview — ${esc(st.file)}</h2><div class="row" style="margin-bottom:10px"><span class="pill ok">${c.new} new</span><span class="pill warn">${c.update} will update</span><span class="pill">${c.same} unchanged</span><span class="sub" style="margin:0">${esc(st.notes.join(' · '))}</span></div>
+    <div class="tw"><table><thead><tr><th>Station</th><th>Days</th><th>Tickets</th><th>Online sales</th><th>Agent T.</th><th>Net payable</th></tr></thead><tbody>${bySt}</tbody></table></div>
+    <div class="row" style="margin-top:12px"><button class="btn" id="btnImp" ${c.new+c.update?'':'disabled'}>Save ${c.new+c.update} row(s) ${UI.session?'to cloud':'(this device)'}</button><button class="btn ghost" id="btnCancelImp">Cancel</button>${UI.session?'':'<span class="pill warn">Not logged in — data will stay on this device only</span>'}</div></div>`;
+  }
+  if(UI.lastImport&&!st){h+=`<div class="card" style="margin-top:14px"><h2>Imported ✔</h2><p class="sub">${dmy(UI.lastImport.from)} → ${dmy(UI.lastImport.to)} is saved. Generate invoices now:</p><div class="row"><button class="btn" id="btnInvNow">🧾 Daily invoices for imported days</button><button class="btn ghost" data-go="inv">Open Invoices</button></div></div>`}
+  return h;
+}
+function wireUp(){
+  const d=$('#drop'),f=$('#fileIn');if(!d)return;
+  d.onclick=()=>f.click();f.onchange=()=>f.files[0]&&handleFile(f.files[0]);
+  d.ondragover=e=>{e.preventDefault();d.classList.add('over')};d.ondragleave=()=>d.classList.remove('over');
+  d.ondrop=e=>{e.preventDefault();d.classList.remove('over');e.dataTransfer.files[0]&&handleFile(e.dataTransfer.files[0])};
+  $('#btnImp')&&($('#btnImp').onclick=confirmImport);$('#btnCancelImp')&&($('#btnCancelImp').onclick=()=>{UI.staged=null;render()});
+  $('#btnInvNow')&&($('#btnInvNow').onclick=()=>{go('inv');UI.invMode='daily';batchDaily(UI.lastImport.from,UI.lastImport.to,'BOTH')});
+}
+
+function pageInv(){
+  const dateRow=UI.invMode==='custom'?`<label class="f">From<input type="date" id="invFrom" value="${UI.invDate}"></label><label class="f">To<input type="date" id="invTo" value="${UI.invTo||UI.invDate}"></label>`:`<label class="f">${UI.invMode==='monthly'?'Any date in month':UI.invMode==='weekly'?'Any date in week':'Date'}<input type="date" id="invDate" value="${UI.invDate}"></label>`;
+  const p=UI.invMode==='custom'?{label:`${dmy(UI.invDate)} - ${dmy(UI.invTo||UI.invDate)}`}:periodFor(UI.invMode,UI.invDate);
+  return `<div class="top"><div><h1>Invoices</h1><p class="sub">NSS e-invoice format · generated from the saved daily data. Print → “Save as PDF”.</p></div></div>
+  <div class="card"><div class="row" style="align-items:flex-end;gap:14px">
+   <div><div class="sub" style="margin:0 0 4px;font-size:12px">Type</div><div class="seg" id="segMode">${['daily','weekly','monthly','custom'].map(m=>`<button data-m="${m}" class="${UI.invMode===m?'on':''}">${m[0].toUpperCase()+m.slice(1)}</button>`).join('')}</div></div>
+   <label class="f">Station<select id="invSt"><option value="BOTH" ${UI.invStation==='BOTH'?'selected':''}>Both (2 invoices)</option><option value="MERSING" ${UI.invStation==='MERSING'?'selected':''}>Mersing</option><option value="TG_GEMOK" ${UI.invStation==='TG_GEMOK'?'selected':''}>Tanjung Gemok</option></select></label>
+   ${dateRow}<button class="btn" id="btnGen">Generate</button></div>
+   <p class="sub" style="margin:10px 0 0">Period: <b>${esc(p.label)}</b></p></div>
+  <div class="card"><h2>Batch</h2><div class="row"><button class="btn ghost" id="btnBatchMonth">All daily invoices for ${monthLabel(UI.month||UI.invDate.slice(0,7))} (${monthsDaysCount()} days)</button><span class="sub" style="margin:0">One PDF with a page per day per station.</span></div></div>
+  <div id="invBar" class="card hide"><div class="row"><button class="btn" id="btnPrint">🖨 Print / Save as PDF</button><span id="mailBtns" class="row"></span><button class="btn ghost" id="btnCloseInv">Close preview</button></div></div>
+  <div id="invPreview"></div>`;
+}
+function monthsDaysCount(){const ym=UI.month||UI.invDate.slice(0,7);return new Set(Object.keys(DATA).filter(k=>k.split('|')[1].startsWith(ym)).map(k=>k.split('|')[1])).size}
+function batchDaily(from,to,station){
+  const dates=allDates().filter(d=>d>=from&&d<=to);const list=[];
+  for(const d of dates)for(const v of genInvoices(station,'daily',d))list.push(v);
+  render();setTimeout(()=>showInvoices(list),0);
+}
+function renderInvPreview(){
+  const list=UI.invList||[];const host=$('#invPreview');
+  if(host)host.innerHTML=`<p class="sub">${list.length} invoice(s) ready — scroll the preview below.</p>`;
+  const mb=$('#mailBtns');if(mb)mb.innerHTML=list.length<=4?list.map(v=>`<a class="btn ghost" style="text-decoration:none" href="${mailto(v)}">✉ Email ${esc(STATIONS[v.station].name)}</a>`).join(''):'';
+}
+function mailto(v){
+  const sub=encodeURIComponent(`Settlement Invoice ${v.no} — ${v.stn} (${v.p.label})`);
+  const body=encodeURIComponent(`Dear ${v.C.buyer},\n\nPlease find attached the settlement e-invoice ${v.no} for ${v.stn}, period ${v.p.label}.\n\nOnline collection: RM ${fmt(v.S.C)}\nNSS charges (incl. SST): RM ${fmt(v.incl)}\nNet payable: RM ${fmt(v.S.M)}\nPayout date: ${dmy(v.payout)}\n\nRegards,\nNSS IT Solution Sdn Bhd`);
+  return `mailto:${v.C.email}?subject=${sub}&body=${body}`;
+}
+function wireInv(){
+  const q=s=>document.querySelector(s);
+  q('#segMode').onclick=e=>{const b=e.target.closest('button');if(b){UI.invMode=b.dataset.m;render()}};
+  q('#invSt').onchange=e=>UI.invStation=e.target.value;
+  if(q('#invDate'))q('#invDate').onchange=e=>{UI.invDate=e.target.value;render()};
+  if(q('#invFrom')){q('#invFrom').onchange=e=>{UI.invDate=e.target.value};q('#invTo').onchange=e=>{UI.invTo=e.target.value}}
+  q('#btnGen').onclick=()=>{
+    const st=q('#invSt').value;UI.invStation=st;
+    const list=genInvoices(st,UI.invMode,UI.invDate,UI.invTo||UI.invDate);
+    if(!list.length)return toast('No saved sales for that period/station.');
+    showInvoices(list);
+  };
+  q('#btnBatchMonth').onclick=()=>{const ym=UI.month||UI.invDate.slice(0,7);batchDaily(ym+'-01',ym+'-31',q('#invSt').value)};
+  q('#btnPrint')&&(q('#btnPrint').onclick=()=>window.print());
+  q('#btnCloseInv')&&(q('#btnCloseInv').onclick=()=>{$('#invoiceHostWrap').classList.add('hide');UI.invList=null;render()});
+  if(UI.invList){$('#invBar').classList.remove('hide');renderInvPreview()}
+}
+
+function pageSet(){
+  const R=CFG.rates,P=CFG.supplier;
+  const f=(path,label,v,type='text')=>`<label class="f">${label}<input type="${type}" data-cfg="${path}" value="${esc(v)}" ${type==='number'?'step="any"':''}></label>`;
+  const st=s=>{const c=CFG.stations[s];return `<div class="card"><h2 class="${STATIONS[s].cls}">${STATIONS[s].name} — buyer & payee</h2><div class="grid g2">${f(`stations.${s}.buyer`,'Buyer name',c.buyer)}${f(`stations.${s}.email`,'Buyer email',c.email,'email')}${f(`stations.${s}.tin`,'Buyer TIN',c.tin)}${f(`stations.${s}.reg`,'Buyer registration no.',c.reg)}${f(`stations.${s}.addr`,'Buyer address',c.addr)}${f(`stations.${s}.contact`,'Buyer contact no.',c.contact)}${f(`stations.${s}.prefix`,'Invoice no. prefix',c.prefix)}${f(`stations.${s}.payee`,'Payment label',c.payee)}${f(`stations.${s}.bank`,'Bank',c.bank)}${f(`stations.${s}.acc`,'Account no.',c.acc)}</div></div>`};
+  return `<div class="top"><div><h1>Settings</h1><p class="sub">Rates apply to all stations and all months (recalculated live). Blank buyer TIN/address will print “-” until you fill them.</p></div><button class="btn" id="btnSaveCfg">Save settings</button></div>
+  <div class="card"><h2>Rates</h2><div class="grid g4">${f('rates.commission','Commission RM / ticket',R.commission,'number')}${f('rates.sst','SST (0.08 = 8%)',R.sst,'number')}${f('rates.mdr','MDR (0.028 = 2.8%)',R.mdr,'number')}${f('rates.proc','Processing fee (0.03 = 3%)',R.proc,'number')}${f('rates.payoutDays','Payout days after period end',R.payoutDays,'number')}</div></div>
+  ${st('MERSING')}${st('TG_GEMOK')}
+  <div class="card"><h2>Supplier (NSS)</h2><div class="grid g2">${f('supplier.name','Name',P.name)}${f('supplier.tin','TIN',P.tin)}${f('supplier.reg','Registration no.',P.reg)}${f('supplier.sst','SST ID',P.sst)}${f('supplier.email','E-invoice email',P.email,'email')}${f('supplier.addr','Address',P.addr)}${f('supplier.tel','Tel/Fax',P.tel)}${f('supplier.bankName','Bank',P.bankName)}${f('supplier.bankAcc','Account no.',P.bankAcc)}${f('supplier.bankHolder','Account name',P.bankHolder)}</div></div>
+  <div class="card"><h2>Backup</h2><div class="row"><button class="btn ghost" id="btnExp">Download backup (JSON)</button><label class="btn ghost" style="cursor:pointer">Restore backup<input type="file" id="fileRestore" accept=".json" class="hide"></label><span class="sub" style="margin:0">${Object.keys(DATA).length} station-days stored.</span></div></div>`;
+}
+function wireSet(){
+  document.querySelectorAll('[data-cfg]').forEach(i=>i.onchange=()=>{const path=i.dataset.cfg.split('.');let o=CFG;for(let k=0;k<path.length-1;k++)o=o[path[k]];const last=path[path.length-1];o[last]=i.type==='number'?+i.value:i.value});
+  $('#btnSaveCfg').onclick=saveCfg;
+  $('#btnExp').onclick=()=>{const blob=new Blob([JSON.stringify({data:DATA,cfg:CFG},null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ferry-backup-${todayISO()}.json`;a.click()};
+  $('#fileRestore').onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());if(j.data){Object.assign(DATA,j.data);Object.keys(j.data).forEach(k=>DIRTY.add(k))}if(j.cfg)CFG=deepMerge(JSON.parse(JSON.stringify(DEF_CFG)),j.cfg);persistLocal();if(UI.session)await cloudPush([...DIRTY]);toast('Backup restored');render()}catch(err){toast('Bad backup file')}};
+}
+
+/* ---------- shell ---------- */
+function go(p){UI.page=p;render()}
+function render(){
+  ensureMonth();
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===UI.page));
+  const m=$('#main');
+  m.innerHTML={dash:pageDash,data:pageData,up:pageUp,inv:pageInv,set:pageSet}[UI.page]();
+  wireMonth();
+  m.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+  ({data:wireData,up:wireUp,inv:wireInv,set:wireSet}[UI.page]||(()=>{}))();
+  setSync();
+}
+$('#nav').onclick=e=>{const b=e.target.closest('button');if(b)go(b.dataset.p)};
+$('#btnAuth').onclick=openAuth;
+render();initSb();
+</script>
+</body>
+</html>
