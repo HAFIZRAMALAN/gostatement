@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>GoStatement Ferry</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b4f8a'/%3E%3Cpath d='M6 19h20l-3 5H9zM10 19v-5h12v5M13 14v-3h6v3' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
 :root{--bg:#f3f6fa;--card:#fff;--ink:#14202e;--mute:#5d6b7c;--line:#dfe6ee;--pri:#0b4f8a;--pri2:#e6f0fa;--ok:#13795b;--okbg:#e3f5ee;--warn:#9a5b00;--warnbg:#fff3dc;--bad:#b3261e;--badbg:#fde8e6;--mer:#0b6bcb;--tg:#7a3fc4}
@@ -146,6 +145,7 @@ let sb=null;
 if(/[?&]embed=1/.test(location.search))document.body.classList.add('embed');
 
 /* ---------- utils ---------- */
+function loadXLSX(){return window.XLSX?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=res;s.onerror=()=>rej(new Error('Could not load the Excel reader - check internet'));document.head.appendChild(s)})}
 function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){console.error(e)}}
 function deepMerge(a,b){for(const k in b){if(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])){a[k]=deepMerge(a[k]||{},b[k])}else a[k]=b[k]}return a}
@@ -369,7 +369,7 @@ function parseWorkbook(wb){
 }
 async function handleFile(file){
   try{
-    const buf=await file.arrayBuffer();const wb=XLSX.read(buf,{type:'array'});
+    await loadXLSX();const buf=await file.arrayBuffer();const wb=XLSX.read(buf,{type:'array'});
     const{rows,notes}=parseWorkbook(wb);
     if(!rows.length){toast('No daily sales found. Expected the monthly tabs (e.g. 2610) with DAY / MERSING / TANJUNG GEMOK headers.',7000);return}
     for(const r of rows){const old=DATA[keyOf(r.station,r.date)];r.status=!old?'new':(old.t===r.t&&+old.a===r.a&&old.u===r.u&&(old.m??null)===(r.m??null)?'same':'update')}
@@ -663,7 +663,7 @@ function wireUnd(){
   const q=x=>document.querySelector(x);
   q('#undStart').onchange=e=>UI.undStart=e.target.value;
   q('#undFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;
-    try{const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});const list=parseUndersalesWb(wb);
+    try{await loadXLSX();const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});const list=parseUndersalesWb(wb);
       if(!list.length)return toast('No tracker rows found (need sheets named MERSING / TANJUNG GEMOK with Date column).',7000);
       const r=await undAdd(list,'excel');toast(`Imported ${r.added} row(s)${r.dup?`, ${r.dup} already existed`:''}${r.cloud===true?' · SAVED TO CLOUD ✔':r.cloud===false?' · cloud save FAILED':' · this device only (login to save to cloud)'}`,7000);render()}
     catch(err){console.error(err);toast('Could not read file: '+err.message,6000)}};
@@ -682,7 +682,8 @@ function wireUnd(){
     const r=await undAdd([{station:st,date,kind,amount,desc:desc||(kind==='recovery'?'Recovered from settlement':'Undersale')}],'manual');
     toast(r.dup?'That exact entry already exists':(r.cloud===false?'Saved locally — cloud save failed':'Added'+(r.cloud?' ✔':'')),3500);render()});
   document.querySelectorAll('[data-udel]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this tracker row?'))return;await undDelete(b.dataset.udel);render()});
-  q('#undExport').onclick=()=>{
+  q('#undExport').onclick=async()=>{
+    try{await loadXLSX()}catch(e){return toast(e.message,5000)}
     const wb=XLSX.utils.book_new();
     for(const st of SK){const L=undLedger(st);const bal=L.length?L[L.length-1].bal:0;
       const aoa=[['UNDERSALES TRACKER - '+STATIONS[st].name],['Outstanding balance (RM):','',bal],[],['Date','Description','Undersale (RM)','Recovered (RM)','Balance (RM)','Date Cleared'],

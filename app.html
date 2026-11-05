@@ -2010,6 +2010,7 @@ const PERMISSION_SECTIONS = [
   {key:'manualinvoice', label:'Manual Invoice'},
   {key:'chargestatements', label:'Charges & Credits'},
   {key:'sendstatements', label:'Send Statements'},
+  {key:'ferry', label:'Ferry (Mersing / Tg Gemok)'},
 ];
 // Admins created before this feature existed (isSuperAdmin left undefined)
 // keep full access — only an explicit `false` scopes them down.
@@ -2027,6 +2028,7 @@ function navItemsFor(actor){
       {route:'manualinvoice', label:'Manual Invoice', icon:ICONS.invoice},
       {route:'chargestatements', label:'Charges & Credits', icon:ICONS.statement},
       {route:'sendstatements', label:'Send Statements', icon:ICONS.mail},
+      {route:'ferry', label:'Ferry (MSG / TGM)', icon:ICONS.ledger},
       {route:'admins', label:'Admins', icon:ICONS.admins},
     ];
     return all.filter(item=>{
@@ -4696,6 +4698,12 @@ function renderMain(){
     else if(VIEW.route === 'chargestatements') html = adminChargeStatementsHtml();
     else if(VIEW.route === 'sendstatements') html = adminSendStatementsHtml();
     else if(VIEW.route === 'admins') html = adminUsersHtml();
+    else if(VIEW.route === 'ferry'){
+      // Ferry module (Mersing + Tanjung Gemok) is its own page, embedded so one login covers it.
+      // Keep the iframe alive across re-renders so it never reloads/flickers.
+      if(main.querySelector('#ferryFrame')) return;
+      html = '<iframe id="ferryFrame" src="ferry/index.html?embed=1" title="Ferry" style="width:100%;height:calc(100vh - 36px);border:0;border-radius:12px;background:transparent"></iframe>';
+    }
     else html = adminOverviewHtml();
   }
 
