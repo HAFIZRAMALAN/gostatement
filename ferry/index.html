@@ -186,8 +186,13 @@ const DEF_CFG={
     TG_GEMOK:{buyer:'BISTARI GEMILANG SHIPPING SDN BHD (TANJUNG GEMOK)',email:'bluewaterexpress01@gmail.com',tin:'C24737250010',reg:'200701037479',addr:'W1 & W2 MERSING HARBOUR CENTER, MERSING, JOHOR',contact:'+60137440207',prefix:'FRY-TGM',payee:'PAYMENT BOOKING TG GEMUK',bank:'Public Bank',acc:'3813442824'}
   }
 };
-let CFG=load('gsf_cfg',null)||JSON.parse(JSON.stringify(DEF_CFG));
-CFG=deepMerge(JSON.parse(JSON.stringify(DEF_CFG)),CFG);
+const CFG_VER=3; // bump when defaults change (e.g. real buyer TIN/reg/address from the Oct invoices) so stale saved copies don't hide them
+function mergeCfg(saved){
+  const base=JSON.parse(JSON.stringify(DEF_CFG));
+  if(!saved||saved.ver!==CFG_VER)return base;   // old/unversioned saved settings are replaced by the new defaults
+  return deepMerge(base,saved);
+}
+let CFG=mergeCfg(load('gsf_cfg',null));CFG.ver=CFG_VER;
 let DATA=load('gsf_data',{});
 let DIRTY=new Set(load('gsf_dirty',[]));
 let UI={page:'dash',month:null,invMode:'daily',invStation:'BOTH',invDate:null,staged:null,session:null};
@@ -198,7 +203,7 @@ if(/[?&]embed=1/.test(location.search))document.body.classList.add('embed');
 function loadXLSX(){return window.XLSX?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=res;s.onerror=()=>rej(new Error('Could not load the Excel reader - check internet'));document.head.appendChild(s)})}
 function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){console.error(e)}}
-function deepMerge(a,b){for(const k in b){if(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])){a[k]=deepMerge(a[k]||{},b[k])}else a[k]=b[k]}return a}
+function deepMerge(a,b){for(const k in b){if(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])){a[k]=deepMerge(a[k]||{},b[k])}else if(!(b[k]===''&&typeof a[k]==='string'&&a[k]!==''))a[k]=b[k]}return a}
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const r2=n=>Math.round((n+Number.EPSILON)*100)/100;
@@ -298,7 +303,7 @@ async function cloudPull(){
   for(const k in DATA)if(!DIRTY.has(k)&&!remote[k])delete DATA[k]; // removed elsewhere
   for(const k in remote)if(!DIRTY.has(k))DATA[k]=remote[k];
   const{data:st}=await sb.from('ferry_settings').select('value').eq('key','config').maybeSingle();
-  if(st&&st.value&&Object.keys(st.value).length)CFG=deepMerge(JSON.parse(JSON.stringify(DEF_CFG)),st.value);
+  if(st&&st.value&&Object.keys(st.value).length){CFG=mergeCfg(st.value);CFG.ver=CFG_VER}
   persistLocal();
 }
 async function saveCfg(){
@@ -789,7 +794,7 @@ function wireSet(){
   document.querySelectorAll('[data-cfg]').forEach(i=>i.onchange=()=>{const path=i.dataset.cfg.split('.');let o=CFG;for(let k=0;k<path.length-1;k++)o=o[path[k]];const last=path[path.length-1];o[last]=i.type==='number'?+i.value:i.value});
   $('#btnSaveCfg').onclick=saveCfg;
   $('#btnExp').onclick=()=>{const blob=new Blob([JSON.stringify({data:DATA,cfg:CFG,und:UND},null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ferry-backup-${todayISO()}.json`;a.click()};
-  $('#fileRestore').onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());if(j.data){Object.assign(DATA,j.data);Object.keys(j.data).forEach(k=>DIRTY.add(k))}if(j.und){const have=new Set(UND.map(uKey));for(const u of j.und)if(!have.has(uKey(u))){UND.push(u);UDIRTY.add(uKey(u))}}if(j.cfg)CFG=deepMerge(JSON.parse(JSON.stringify(DEF_CFG)),j.cfg);persistLocal();if(UI.session)await cloudPush([...DIRTY]);toast('Backup restored');render()}catch(err){toast('Bad backup file')}};
+  $('#fileRestore').onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());if(j.data){Object.assign(DATA,j.data);Object.keys(j.data).forEach(k=>DIRTY.add(k))}if(j.und){const have=new Set(UND.map(uKey));for(const u of j.und)if(!have.has(uKey(u))){UND.push(u);UDIRTY.add(uKey(u))}}if(j.cfg){CFG=mergeCfg(j.cfg);CFG.ver=CFG_VER}persistLocal();if(UI.session)await cloudPush([...DIRTY]);toast('Backup restored');render()}catch(err){toast('Bad backup file')}};
 }
 
 
