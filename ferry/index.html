@@ -182,8 +182,8 @@ const DEF_CFG={
     addr:'UNIT 11-G-01, CORPORATE PARK, STAR CENTRAL, LINGKARAN CYBER POINT TIMUR, CYBER 12, 63000 CYBERJAYA, SELANGOR.',tel:'Tel: +603-8322 7555 Fax: +603-8322 7666',
     bankName:'Maybank Islamic Berhad',bankAcc:'562142422721',bankHolder:'NSS IT Solution Sdn. Bhd.'},
   stations:{
-    MERSING:{buyer:'BISTARI GEMILANG TRAVEL SDN BHD',email:'bluewater_express@yahoo.com',tin:'',reg:'',addr:'',contact:'',prefix:'FRY-MSG',payee:'PAYMENT BOOKING MERSING',bank:'Public Bank',acc:'3196121409'},
-    TG_GEMOK:{buyer:'BISTARI GEMILANG SHIPPING SDN BHD',email:'bluewaterexpress01@gmail.com',tin:'',reg:'',addr:'',contact:'',prefix:'FRY-TGM',payee:'PAYMENT BOOKING TG GEMUK',bank:'Public Bank',acc:'3813442824'}
+    MERSING:{buyer:'BISTARI GEMILANG TRAVEL SDN BHD (MERSING)',email:'bluewater_express@yahoo.com',tin:'C24668842040',reg:'201601031061',addr:'W1 & W2 MERSING HARBOUR CENTER, MERSING, JOHOR',contact:'+60137440207',prefix:'FRY-MSG',payee:'PAYMENT BOOKING MERSING',bank:'Public Bank',acc:'3196121409'},
+    TG_GEMOK:{buyer:'BISTARI GEMILANG SHIPPING SDN BHD (TANJUNG GEMOK)',email:'bluewaterexpress01@gmail.com',tin:'C24737250010',reg:'200701037479',addr:'W1 & W2 MERSING HARBOUR CENTER, MERSING, JOHOR',contact:'+60137440207',prefix:'FRY-TGM',payee:'PAYMENT BOOKING TG GEMUK',bank:'Public Bank',acc:'3813442824'}
   }
 };
 let CFG=load('gsf_cfg',null)||JSON.parse(JSON.stringify(DEF_CFG));
@@ -472,18 +472,24 @@ async function confirmImport(){
 function words(n){
   const o=['','ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','TEN','ELEVEN','TWELVE','THIRTEEN','FOURTEEN','FIFTEEN','SIXTEEN','SEVENTEEN','EIGHTEEN','NINETEEN'];
   const t=['','','TWENTY','THIRTY','FORTY','FIFTY','SIXTY','SEVENTY','EIGHTY','NINETY'];
-  const h=x=>{let s='';if(x>=100){s+=o[Math.floor(x/100)]+' HUNDRED';x%=100;if(x)s+=' AND '}if(x>=20){s+=t[Math.floor(x/10)];if(x%10)s+=' '+o[x%10]}else if(x)s+=o[x];return s};
+  const h=x=>{let s='';if(x>=100){s+=o[Math.floor(x/100)]+' HUNDRED';x%=100;if(x)s+=' '}if(x>=20){s+=t[Math.floor(x/10)];if(x%10)s+=' '+o[x%10]}else if(x)s+=o[x];return s};
   const conv=x=>{if(x===0)return'ZERO';let s='';const parts=[[1e9,'BILLION'],[1e6,'MILLION'],[1e3,'THOUSAND']];for(const[v,l]of parts){if(x>=v){s+=conv(Math.floor(x/v))+' '+l+' ';x%=v}}if(x)s+=h(x);return s.trim()};
   const tot=Math.round(n*100);const rm=Math.floor(tot/100),sen=tot%100;
-  return 'RINGGIT MALAYSIA '+conv(rm)+(sen?' AND SEN '+conv(sen):'')+' ONLY';
+  return 'RINGGIT MALAYSIA '+conv(rm)+(sen?' AND CENTS '+conv(sen):'')+' ONLY';
 }
 
 /* ---------- invoice builder ---------- */
 function weekRange(iso){const d=dow(iso);const mon=addDays(iso,d===0?-6:1-d);return[mon,addDays(mon,6)]}
+function monthStartFor(ym){
+  const[y,m]=ym.split('-').map(Number);const prev=m===1?`${y-1}-12`:`${y}-${pad(m-1)}`;
+  const days=[...new Set(Object.keys(DATA).map(k=>k.split('|')[1]).filter(d=>d.startsWith(prev+'-')))].sort();
+  const before=Object.keys(DATA).some(k=>k.split('|')[1]<prev+'-01');
+  return(days.length&&days.length<=3&&!before)?days[0]:ym+'-01';
+}
 function periodFor(mode,date){
   if(mode==='daily')return{from:date,to:date,label:dmy(date)};
   if(mode==='weekly'){const[f,t]=weekRange(date);return{from:f,to:t,label:`${dmy(f)} - ${dmy(t)}`}}
-  if(mode==='monthly'){const ym=monthOf(date);const f=ym+'-01',t=ym+'-'+pad(daysInMonth(ym));return{from:f,to:t,label:monthLabel(ym)}}
+  if(mode==='monthly'){const ym=monthOf(date);const f=monthStartFor(ym),t=ym+'-'+pad(daysInMonth(ym));return{from:f,to:t,label:f===ym+'-01'?monthLabel(ym):`${dmy(f)} - ${dmy(t)}`}}
   return null;
 }
 function invNo(station,mode,p){
@@ -497,13 +503,17 @@ function buildInvoice(station,mode,p){
   const rows=rowsFor(station,p.from,p.to);if(!rows.length)return null;
   const S=sumCalc(rows),R=CFG.rates,C=CFG.stations[station],P=CFG.supplier;
   const dotp=`${p.from.split('-').reverse().join('.')}-${p.to.split('-').reverse().join('.')}`;
-  const stn=STATIONS[station].name;
+  const stn=STATIONS[station].name;const nm=stn.split(' ').map(w=>w[0]+w.slice(1).toLowerCase()).join(' ');
+  const dd=iso=>iso.split('-').reverse().join('.');
+  const br=p.from===p.to?`[${dd(p.from)}]`:`[${dd(p.from)}-${dd(p.to)}]`;
+  const sstIn=x=>r2(x*R.sst/(1+R.sst));
   const lines=[
-    {d:`ONLINE TICKET COMMISSION (RM${fmt(R.commission)}/TICKET)`,q:S.t,up:R.commission,tax:S.E,tot:r2(S.D+S.E),base:S.D},
-    {d:`AGENT TICKET COMMISSION (RM${fmt(R.commission)}/TICKET)`,q:S.u,up:R.commission,tax:S.K,tot:S.L,base:S.J},
-    {d:`PAYMENT GATEWAY (MDR) FEE ${(R.mdr*100).toFixed(1)}% ON ONLINE COLLECTION RM${fmt(S.C)}`,q:1,up:S.F,tax:S.G,tot:r2(S.F+S.G),base:S.F}
+    {d:`${nm} Commission ${br}`,tot:r2(S.D+S.E)},
+    {d:`${nm} MDR Charges ${br}`,tot:r2(S.F+S.G)},
+    {d:`${nm} Agent Commission ${br}`,tot:S.L}
   ];
-  const excl=r2(S.D+S.J+S.F),tax=r2(S.E+S.K+S.G),incl=r2(excl+tax);
+  lines.forEach(l=>{l.tax=sstIn(l.tot)});
+  const incl=r2(lines.reduce((x,l)=>x+l.tot,0)),tax=r2(lines.reduce((x,l)=>x+l.tax,0)),excl=r2(incl-tax);
   const payout=addDays(p.to,R.payoutDays);
   const showAnnex=mode!=='daily'&&rows.length>1;
   return{station,mode,p,rows,S,lines,excl,tax,incl,no:invNo(station,mode,p),dotp,stn,C,P,payout,showAnnex,R};
@@ -521,10 +531,9 @@ function invoiceHtml(v){
   <div class="blk"><div class="kv">${kvHtml([['Supplier TIN',esc(P.tin)],['Supplier Registration No.',esc(P.reg)],['Supplier SST ID',esc(P.sst)],['Supplier MSIC Code',esc(P.msic)],['Supplier Email',esc(P.email)]])}</div>
    <div><div class="ein">E-INVOICE</div><div class="kv rv">${kvHtml([['Document Code',esc(v.no)],['Unique Identifier No.','-'],['Invoice Date and Time',dt]])}</div></div></div>
   <div class="blk"><div class="kv">${kvHtml([['Buyer Name',`<b>${esc(C.buyer)}</b>`],['Buyer TIN',`<b>${esc(C.tin||'-')}</b>`],['Buyer Registration No.',`<b>${esc(C.reg||'-')}</b>`],['Buyer Address',esc(C.addr||'-')],['Buyer Contact No.',esc(C.contact||'-')]])}</div>
-   <div class="kv">${kvHtml([['Buyer Email',esc(C.email)],['Due Date',dmy(v.payout)],['Your PO No.',''],['Page','1 of 2'],['Invoice Currency Code','MYR']])}</div></div>
-  <table class="it"><thead><tr><th class="l" style="width:7%">ITEM</th><th style="width:13%">TAX<br>CLASSIFICATION</th><th>DESCRIPTION</th><th style="width:9%">QUANTITY</th><th style="width:10%">U.PRICE<br>(RM)</th><th style="width:12%">SERVICE TAX<br>(${sst}%)</th><th style="width:11%" class="r">TOTAL<br>(RM)</th></tr></thead><tbody>
-   <tr><td></td><td class="c">022</td><td>FERRY SETTLEMENT CHARGES - ${esc(v.stn)} (${esc(v.dotp)})</td><td></td><td></td><td></td><td></td></tr>
-   ${v.lines.map((l,i)=>`<tr><td>${i+1}.</td><td class="c">022</td><td>${esc(l.d)}</td><td class="c">${fmtN(l.q)}</td><td class="r">${fmt(l.q?r2(l.base/(l.q||1)):l.up)}</td><td class="r">${fmt(l.tax)}</td><td class="r">${fmt(l.tot)}</td></tr>`).join('')}
+   <div class="kv">${kvHtml([['Buyer Email',esc(C.email)],['Due Date',dmy(v.p.to)],['Your PO No.',''],['Page','1 of 2'],['Invoice Currency Code','MYR']])}</div></div>
+  <table class="it"><thead><tr><th class="l" style="width:6%">ITEM</th><th style="width:6%">TAX</th><th style="width:10%">CLASSIFICATION</th><th>DESCRIPTION</th><th style="width:9%">QUANTITY</th><th style="width:10%">U.PRICE<br>(RM)</th><th style="width:12%">SERVICE TAX<br>(${sst}%)</th><th style="width:11%" class="r">TOTAL<br>(RM)</th></tr></thead><tbody>
+   ${v.lines.map((l,i)=>`<tr><td>${i+1}.</td><td class="c">SV-8</td><td class="c">022</td><td>${esc(l.d)}</td><td class="c">1</td><td class="r">${fmt(l.tot)}</td><td class="r">${fmt(l.tax)}</td><td class="r">${fmt(l.tot)}</td></tr>`).join('')}
   </tbody></table>
   <div class="grow"></div>
   <div class="tot"><div>${esc(words(v.incl))}</div><table>
