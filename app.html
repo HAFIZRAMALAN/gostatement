@@ -197,6 +197,21 @@
   .nav-item.active svg{opacity:1;}
   .nav-item .nav-count{margin-left:auto; font-size:11px; font-weight:600; color:var(--sidebar-ink-dim); background:rgba(255,255,255,.06); border-radius:99px; padding:1px 7px;}
   .nav-item.active .nav-count{color:#fff; background:rgba(255,255,255,.12);}
+  /* Row action menus + calmer tables */
+  .row-actions{display:flex; gap:6px; justify-content:flex-end; align-items:center;}
+  .menu-wrap{position:relative; display:inline-block;}
+  .menu{display:none; position:absolute; right:0; top:calc(100% + 4px); background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow-md); min-width:190px; padding:4px; z-index:40; text-align:left;}
+  .menu-wrap.open .menu{display:block;}
+  .menu button{display:block; width:100%; text-align:left; background:none; border:0; padding:8px 10px; border-radius:6px; font-size:13px; font-weight:500; color:var(--ink); cursor:pointer;}
+  .menu button:hover{background:var(--surface-2);}
+  .menu button.danger{color:var(--bad);}
+  .dim{color:var(--ink-faint);}
+  .panel-head h3{font-size:14.5px; font-weight:600;}
+  /* Overview stat strip: one quiet block instead of four floating boxes */
+  .stat-strip{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:18px;}
+  .stat-strip .kpi{border:0; border-radius:0; margin:0;}
+  .stat-strip .kpi, .stat-strip .kpi:hover{transform:none; box-shadow:none;}
+  @media (max-width:760px){ .stat-strip{grid-template-columns:1fr 1fr;} }
   /* Module tab bar — one sidebar entry per module, its pages as tabs on top (same pattern as Ferry) */
   .subnav{display:flex; align-items:center; gap:14px; flex-wrap:wrap; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:8px 10px; margin-bottom:18px;}
   .subnav-brand{display:flex; align-items:center; gap:10px; font-weight:700; font-size:14px; padding-right:14px; border-right:1px solid var(--border); color:var(--ink); white-space:nowrap;}
@@ -3342,6 +3357,10 @@ function ledgerTableHtml(rows, opts){
   const showTerminal = !!opts.showTerminal;
   const fixedTerminal = opts.terminal || null;
   const totals = sumRows(rows);
+  // Zeros drawn as red "RM 0.00" everywhere made every row shout; a muted
+  // dash keeps the eye on the cells that actually have money in them.
+  const money = v => Math.abs(v) < 0.005 ? '<span class="dim">—</span>' : fmtMoney(v);
+  const charge = v => Math.abs(v) < 0.005 ? '<span class="dim">—</span>' : '<span style="color:var(--bad);">'+fmtMoney(v)+'</span>';
   return `
     <div class="scrollx">
       <table>
@@ -3378,10 +3397,10 @@ function ledgerTableHtml(rows, opts){
               <td>${recon.mismatch ? '⚠️ ' : ''}${fmtDate(r[1])}</td>
               ${showTerminal? `<td><span class="pill pill-${term.toLowerCase()}">${esc(term)}</span></td>` : ''}
               ${showCompany? `<td style="text-align:left;">${esc(r[0])}</td>` : ''}
-              <td class="num">${fmtMoney(r[2])}</td>
-              <td class="num" style="color:var(--bad);">${fmtMoney(r[3])}</td>
-              <td class="num" style="color:var(--bad);">${fmtMoney(r[4])}</td>
-              <td class="num">${fmtMoney(r[5])}${cfRecBadge}</td>
+              <td class="num">${money(r[2])}</td>
+              <td class="num">${charge(r[3])}</td>
+              <td class="num">${charge(r[4])}</td>
+              <td class="num">${money(r[5])}${cfRecBadge}</td>
               <td class="num" style="font-weight:700; ${recon.mismatch?'color:var(--bad);':''}">${fmtMoney(r[6])}${cfBadge}</td>
               <td><span class="pill ${STATUS_PILL[status]}">${STATUS_LABEL[status]}</span></td>
             </tr>
@@ -3714,6 +3733,31 @@ function adminUndersalesHtml(){
    ADMIN — OVERVIEW
    ============================================================ */
 function terminalsInScope(){ return VIEW.adminTerminal === 'ALL' ? ['KT','MS'] : [VIEW.adminTerminal]; }
+// Trend series for the Overview chart. Long ranges roll up into weekly
+// totals: hundreds of daily points squeezed into one canvas read as spikes,
+// not a trend.
+function overviewTrendSeries(){
+  const terms = terminalsInScope();
+  return terms.map(t=>{
+    const r = rangeForTerminal(t);
+    const trows = rowsForTerminal(t).filter(row=>inRange(row[1], r.from, r.to));
+    const byDate = new Map();
+    for(const row of trows){ byDate.set(row[1], (byDate.get(row[1])||0) + row[6]); }
+    let points = Array.from(byDate.entries()).sort((a,b)=>a[0]<b[0]?-1:1).map(([d,v])=>({d,v}));
+    let weekly = false;
+    if(points.length > 70){
+      const byWeek = new Map();
+      for(const p of points){
+        const dt = new Date(p.d+'T00:00:00Z'); dt.setUTCDate(dt.getUTCDate() - ((dt.getUTCDay()+6)%7));
+        const wk = dt.toISOString().slice(0,10);
+        byWeek.set(wk, (byWeek.get(wk)||0) + p.v);
+      }
+      points = Array.from(byWeek.entries()).sort((a,b)=>a[0]<b[0]?-1:1).map(([d,v])=>({d,v}));
+      weekly = true;
+    }
+    return { label: TERMINALS[t].short, color: getCss(t==='KT'?'--kt':'--ms'), points, weekly };
+  });
+}
 function adminOverviewHtml(){
   const terms = terminalsInScope();
   let rows = [];
@@ -3728,14 +3772,7 @@ function adminOverviewHtml(){
   for(const row of rows){ const key = row[7]+'::'+row[0]; byOp.set(key, (byOp.get(key)||0) + row[6]); }
   const leaderboard = Array.from(byOp.entries()).map(([k,v])=>({label:k.split('::')[1], v, color: getCss(k.startsWith('KT')?'--kt':'--ms')})).sort((a,b)=>b.v-a.v).slice(0,8);
 
-  const series = terms.map(t=>{
-    const r = rangeForTerminal(t);
-    const trows = rowsForTerminal(t).filter(row=>inRange(row[1], r.from, r.to));
-    const byDate = new Map();
-    for(const row of trows){ byDate.set(row[1], (byDate.get(row[1])||0) + row[6]); }
-    const points = Array.from(byDate.entries()).sort((a,b)=>a[0]<b[0]?-1:1).map(([d,v])=>({d,v}));
-    return { label: TERMINALS[t].short, color: getCss(t==='KT'?'--kt':'--ms'), points };
-  });
+  const series = overviewTrendSeries();
 
   return `
     <div id="topbar">
@@ -3750,17 +3787,17 @@ function adminOverviewHtml(){
       </div>
     </div>
 
-    <div class="kpi-grid">
+    <div class="kpi-grid stat-strip">
       <div class="card kpi"><div class="eyebrow">Active Operators</div><div class="value num" data-target="${activeOps}" data-fmt="int">0</div></div>
       <div class="card kpi"><div class="eyebrow">Total Sales</div><div class="value num" data-target="${totals.sales}" data-fmt="money">RM 0.00</div></div>
-      <div class="card kpi"><div class="eyebrow">Total Charges Collected</div><div class="value num" style="color:var(--bad);" data-target="${-(totals.stdCharge+totals.manualCharge)}" data-fmt="money">RM 0.00</div></div>
-      <div class="card kpi" style="border-color:var(--accent);"><div class="eyebrow">Total Net Payout</div><div class="value num" data-target="${totals.final}" data-fmt="money">RM 0.00</div></div>
+      <div class="card kpi"><div class="eyebrow">Charges Collected</div><div class="value num" data-target="${-(totals.stdCharge+totals.manualCharge)}" data-fmt="money">RM 0.00</div></div>
+      <div class="card kpi"><div class="eyebrow">Net Payout to Operators</div><div class="value num" style="color:var(--accent);" data-target="${totals.final}" data-fmt="money">RM 0.00</div></div>
     </div>
 
     <div class="panel-grid">
       <div class="card panel">
         <div class="panel-head">
-          <div><h3>Daily net payout trend</h3><div class="sub">${series[0] ? series[0].points.length : 0} day(s)</div></div>
+          <div><h3>Daily net payout trend</h3><div class="sub">${series[0] ? series[0].points.length : 0} ${series[0]&&series[0].weekly?'week(s) · weekly totals':'day(s)'}</div></div>
           <div id="chart-tip" class="num" style="display:none; font-size:12.5px; color:var(--ink-soft); background:var(--surface-2); padding:4px 10px; border-radius:6px;"></div>
         </div>
         <canvas id="adminChart" style="width:100%; height:190px; display:block;"></canvas>
@@ -3792,56 +3829,70 @@ function opRangeTotal(op){
   const rows = rowsFor(op.terminal, op.company).filter(row=>inRange(row[1], r.from, r.to));
   return sumRows(rows);
 }
+// The two ferry companies live in the Ferry module, but people look for
+// "every operator" here — so the directory lists them too, read-only.
+const FERRY_DIRECTORY = [
+  { station:'Mersing', code:'MSG', company:'BISTARI GEMILANG TRAVEL SDN BHD', email:'bluewater_express@yahoo.com' },
+  { station:'Tanjung Gemok', code:'TGM', company:'BISTARI GEMILANG SHIPPING SDN BHD', email:'bluewaterexpress01@gmail.com' },
+];
 function adminDirectoryHtml(){
   let ops = STATE.operators.slice();
-  if(VIEW.dirTerminal !== 'ALL') ops = ops.filter(o=>o.terminal===VIEW.dirTerminal);
-  if(VIEW.dirSearch) { const q = VIEW.dirSearch.toLowerCase(); ops = ops.filter(o => o.company.toLowerCase().includes(q) || o.email.toLowerCase().includes(q)); }
+  const showBus = VIEW.dirTerminal !== 'FERRY';
+  const showFerry = VIEW.dirTerminal === 'ALL' || VIEW.dirTerminal === 'FERRY';
+  if(VIEW.dirTerminal !== 'ALL' && VIEW.dirTerminal !== 'FERRY') ops = ops.filter(o=>o.terminal===VIEW.dirTerminal);
+  if(VIEW.dirSearch){ const q = VIEW.dirSearch.toLowerCase(); ops = ops.filter(o => o.company.toLowerCase().includes(q) || (o.email||'').toLowerCase().includes(q)); }
   ops.sort((a,b)=> opRangeTotal(b).final - opRangeTotal(a).final);
+  const ferryRows = !showFerry ? [] : FERRY_DIRECTORY.filter(f => !VIEW.dirSearch || (f.company+' '+f.station+' '+f.email).toLowerCase().includes(VIEW.dirSearch.toLowerCase()));
 
-  return `
-    <div id="topbar">
-      <div><h1>Operator Directory</h1><div class="desc">Manage sign-in accounts for every bus operator</div></div>
-      <div class="topbar-actions"><button class="btn btn-accent btn-sm" id="btn-add-operator">+ Add Operator</button></div>
-    </div>
-    <div class="card table-card">
+  const toolbar = `
       <div class="table-toolbar">
         <input type="search" id="dirSearch" placeholder="Search operator or email…" value="${esc(VIEW.dirSearch)}">
         <select id="dirTerminal">
           <option value="ALL" ${VIEW.dirTerminal==='ALL'?'selected':''}>All terminals</option>
           <option value="KT" ${VIEW.dirTerminal==='KT'?'selected':''}>KT Terminal</option>
           <option value="MS" ${VIEW.dirTerminal==='MS'?'selected':''}>Melaka Sentral</option>
+          <option value="FERRY" ${VIEW.dirTerminal==='FERRY'?'selected':''}>Ferry (MSG / TGM)</option>
         </select>
-        <span style="margin-left:auto; font-size:12.5px; color:var(--ink-faint);">${ops.length} operator(s)</span>
-      </div>
+        <span style="margin-left:auto; font-size:12.5px; color:var(--ink-faint);">${showBus ? ops.length+' operator(s)' : ferryRows.length+' ferry operator(s)'}</span>
+      </div>`;
+
+  const busTable = !showBus ? '' : `
+    <div class="card table-card">
+      ${toolbar}
       <div class="scrollx">
         <table>
           <thead><tr>
-            <th style="text-align:left;">Operator</th><th>Terminal</th><th>Sales (period)</th><th>Net Payout (period)</th><th>Status</th><th>Password</th><th style="text-align:right;">Actions</th>
+            <th style="text-align:left;">Operator</th><th>Terminal</th><th>Sales (period)</th><th>Net payout (period)</th><th>Status</th><th style="text-align:right;">Actions</th>
           </tr></thead>
           <tbody>
             ${ops.map(o=>{
               const t = opRangeTotal(o);
+              const infoNeeded = (!o.companyName || !o.companyAddress);
               return `
               <tr class="row-${o.terminal.toLowerCase()}">
                 <td style="text-align:left;">
                   <div class="op-row">
                     <div class="op-badge">${initials(o.company)}</div>
-                    <div class="op-meta"><div class="name">${esc(o.company)}${(!o.companyName || !o.companyAddress) ? ' <span class="pill pill-accent" style="font-size:10px; padding:2px 6px;" title="Add the legal company name + billing address for Manual Invoices">Info needed</span>' : ''}</div><div class="email">${esc(o.email)}</div></div>
+                    <div class="op-meta"><div class="name">${esc(o.company)}</div><div class="email">${esc(o.email||'')}${infoNeeded ? ` <span style="color:var(--warning);" title="Add the legal company name + billing address for Manual Invoices">· info needed</span>` : ''}</div></div>
                   </div>
                 </td>
                 <td><span class="pill pill-${o.terminal.toLowerCase()}">${o.terminal}</span></td>
-                <td class="num">${fmtMoney(t.sales)}</td>
-                <td class="num" style="font-weight:700;">${fmtMoney(t.final)}</td>
-                <td>${o.active ? '<span class="pill pill-good">Active</span>' : '<span class="pill pill-bad">Inactive</span>'}</td>
-                <td>${o.mustChange ? '<span class="pill pill-accent">Temporary</span>' : '<span class="pill pill-neutral">Set</span>'}</td>
+                <td class="num">${Math.abs(t.sales)<0.005?'<span class="dim">—</span>':fmtMoney(t.sales)}</td>
+                <td class="num" style="font-weight:650;">${Math.abs(t.final)<0.005?'<span class="dim">—</span>':fmtMoney(t.final)}</td>
+                <td>${o.active ? `<span class="pill pill-good" ${o.mustChange?'title="Temporary password — operator has not set their own yet"':''}>Active</span>` : '<span class="pill pill-bad">Inactive</span>'}</td>
                 <td style="text-align:right;">
-                  <div style="display:flex; gap:6px; justify-content:flex-end;">
+                  <div class="row-actions">
                     <button class="btn btn-sm" data-act="view" data-id="${o.id}">Dashboard</button>
                     <button class="btn btn-sm" data-act="statement" data-id="${o.id}">Statement</button>
-                    <button class="btn btn-sm" data-act="editinfo" data-id="${o.id}">Company Info</button>
-                    <button class="btn btn-sm" data-act="selfsignup" data-id="${o.id}" title="Get a link so this operator can set their own login + details">Self Sign-up Link</button>
-                    <button class="btn btn-sm" data-act="reset" data-id="${o.id}">Reset password</button>
-                    <button class="btn btn-sm ${o.active?'btn-danger':''}" data-act="toggle" data-id="${o.id}">${o.active?'Deactivate':'Activate'}</button>
+                    <div class="menu-wrap">
+                      <button class="btn btn-sm" data-menu aria-label="More actions" title="More actions">⋯</button>
+                      <div class="menu">
+                        <button data-act="editinfo" data-id="${o.id}">Company info${infoNeeded?' · incomplete':''}</button>
+                        <button data-act="selfsignup" data-id="${o.id}">Self sign-up link</button>
+                        <button data-act="reset" data-id="${o.id}">Reset password${o.mustChange?' (temporary)':''}</button>
+                        <button data-act="toggle" data-id="${o.id}" class="${o.active?'danger':''}">${o.active?'Deactivate':'Activate'}</button>
+                      </div>
+                    </div>
                   </div>
                 </td>
               </tr>`;
@@ -3850,7 +3901,39 @@ function adminDirectoryHtml(){
         </table>
       </div>
       ${!ops.length ? '<div class="empty">No operator matches this search.</div>' : ''}
+    </div>`;
+
+  const ferryCard = !ferryRows.length ? '' : `
+    <div class="card table-card" ${showBus?'style="margin-top:16px;"':''}>
+      ${showBus ? '' : toolbar}
+      <div class="table-toolbar"><b style="font-size:13px;">Ferry — Mersing · Tanjung Gemok</b><span style="margin-left:auto; font-size:12.5px; color:var(--ink-faint);">accounts &amp; figures managed inside the Ferry module</span></div>
+      <div class="scrollx">
+        <table>
+          <tbody>
+            ${ferryRows.map(f=>`
+              <tr>
+                <td style="text-align:left;">
+                  <div class="op-row">
+                    <div class="op-badge" style="background:var(--accent-soft); color:var(--accent);">${initials(f.company)}</div>
+                    <div class="op-meta"><div class="name">${esc(f.company)}</div><div class="email">${esc(f.email)}</div></div>
+                  </div>
+                </td>
+                <td><span class="pill pill-accent">${f.code}</span></td>
+                <td style="text-align:left; color:var(--ink-soft);">${esc(f.station)} ferry terminal</td>
+                <td style="text-align:right;"><button class="btn btn-sm" data-open-ferry="1">Open Ferry</button></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+
+  return `
+    <div id="topbar">
+      <div><h1>Operator Directory</h1><div class="desc">Sign-in accounts for every bus operator, plus the ferry companies</div></div>
+      <div class="topbar-actions"><button class="btn btn-accent btn-sm" id="btn-add-operator">+ Add Operator</button></div>
     </div>
+    ${busTable}
+    ${ferryCard}
   `;
 }
 
@@ -3883,6 +3966,7 @@ function adminLedgerHtml(){
         <input type="text" id="ledgerSearch" placeholder="Filter by operator code…" value="${esc(VIEW.ledgerSearch)}">
         <button class="btn btn-sm" id="btn-bulk-prefinalize">Pre-finalize visible rows</button>
         <button class="btn btn-sm" id="btn-bulk-finalize">Finalize visible rows</button>
+        <button class="btn btn-sm" id="btn-adj-toggle">${VIEW.adjPanelOpen?'Hide deduction search':'Search deductions &amp; refunds'}</button>
         <span style="margin-left:auto; font-size:12.5px; color:var(--ink-faint);">${rows.length} row(s)</span>
       </div>
       ${ledgerTableHtml(rows, {showCompany:true, showTerminal:true})}
@@ -3896,6 +3980,9 @@ function adminLedgerHtml(){
 // first guessing the right date range.
 function adjustmentsSearchPanelHtml(){
   const hasFilter = VIEW.adjSearchQuery.trim() || VIEW.adjSearchType !== 'ALL' || VIEW.adjDateFrom || VIEW.adjDateTo;
+  // Collapsed by default: it's an occasional audit tool, not something that
+  // should sit above the ledger every day.
+  if(!VIEW.adjPanelOpen && !hasFilter) return '';
   const allResults = hasFilter ? searchAdjustments(VIEW.adjSearchQuery, VIEW.adjSearchType, VIEW.adjDateFrom, VIEW.adjDateTo) : [];
   const total = allResults.reduce((s,r)=>s+r.amount, 0);
   const RESULT_CAP = 300; // keep the rendered table from getting huge on a very broad search
@@ -3903,7 +3990,7 @@ function adjustmentsSearchPanelHtml(){
   const truncated = allResults.length > RESULT_CAP;
   return `
     <div class="card panel" style="margin-bottom:16px;">
-      <div class="panel-head"><h3>Search Deductions &amp; Refunds</h3></div>
+      <div class="panel-head"><h3>Search Deductions &amp; Refunds</h3>${hasFilter?'':'<button class="btn btn-sm" id="btn-adj-hide">Hide</button>'}</div>
       <div class="desc" style="margin-bottom:10px;">Find every operator with a refund, RFID charge, or other manually-added adjustment — across all dates by default; add a date range below to narrow it.</div>
       <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
         <input type="text" id="adjSearchQuery" placeholder="Search by operator, label… e.g. SANI or refund" value="${esc(VIEW.adjSearchQuery)}" style="flex:1.5; min-width:200px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--ink);">
@@ -4803,6 +4890,9 @@ function renderMain(){
   }
 
   if(BUS_ROUTES.includes(VIEW.route)) VIEW.lastBusTab = VIEW.route;
+  // The Ferry iframe should use the whole window — capping #main at 1360px
+  // left a dead strip (and a stray scrollbar) down the right on wide screens.
+  main.style.maxWidth = VIEW.route === 'ferry' ? 'none' : '';
   main.innerHTML = busTabBarHtml(actor) + html;
   const subnav = main.querySelector('.subnav-tabs');
   if(subnav) subnav.addEventListener('click', e=>{
@@ -4892,16 +4982,7 @@ function wireMain(actor, effectiveOp){
     const adminChart = document.getElementById('adminChart');
     const leaderChart = document.getElementById('leaderChart');
     if(adminChart){
-      const terms = terminalsInScope();
-      const series = terms.map(t=>{
-        const r = rangeForTerminal(t);
-        const trows = rowsForTerminal(t).filter(row=>inRange(row[1], r.from, r.to));
-        const byDate = new Map();
-        for(const row of trows){ byDate.set(row[1], (byDate.get(row[1])||0) + row[6]); }
-        const points = Array.from(byDate.entries()).sort((a,b)=>a[0]<b[0]?-1:1).map(([d,v])=>({d,v}));
-        return { label: TERMINALS[t].short, color: getCss(t==='KT'?'--kt':'--ms'), points };
-      });
-      drawAreaChart(adminChart, series, { tipEl: document.getElementById('chart-tip') });
+      drawAreaChart(adminChart, overviewTrendSeries(), { tipEl: document.getElementById('chart-tip') });
     }
     if(leaderChart){
       const terms = terminalsInScope();
@@ -5102,6 +5183,18 @@ function wireMain(actor, effectiveOp){
     });
   });
 
+  document.querySelectorAll('[data-open-ferry]').forEach(b=> b.addEventListener('click', ()=>{ IMPORT_PREVIEW = null; VIEW.route = 'ferry'; renderShell(); }));
+  document.querySelectorAll('[data-menu]').forEach(b=> b.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const wrap = b.closest('.menu-wrap'); const wasOpen = wrap.classList.contains('open');
+    document.querySelectorAll('.menu-wrap.open').forEach(w=>w.classList.remove('open'));
+    if(!wasOpen) wrap.classList.add('open');
+  }));
+  if(!window.__menuCloser){ window.__menuCloser = true; document.addEventListener('click', ()=> document.querySelectorAll('.menu-wrap.open').forEach(w=>w.classList.remove('open'))); }
+  const adjToggle = document.getElementById('btn-adj-toggle');
+  if(adjToggle) adjToggle.addEventListener('click', ()=>{ VIEW.adjPanelOpen = !VIEW.adjPanelOpen; renderMain(); });
+  const adjHide = document.getElementById('btn-adj-hide');
+  if(adjHide) adjHide.addEventListener('click', ()=>{ VIEW.adjPanelOpen = false; renderMain(); });
   document.querySelectorAll('[data-act]').forEach(btn=>{
     btn.addEventListener('click', (ev)=>{
       ev.stopPropagation();
@@ -5474,8 +5567,10 @@ function manualImportPreviewHtml(){
                 <td style="text-align:left;">
                   <select data-mi-map="${i}" class="btn btn-sm" style="min-width:220px;">
                     <option value="">— Skip —</option>
+                    <option value="__new__" ${g.matchedOperatorId==='__new__'?'selected':''}>+ Create new operator: ${esc(g.name)}</option>
                     ${opsInTerminal.map(o=>`<option value="${o.id}" ${g.matchedOperatorId===o.id?'selected':''}>${esc(o.company)}</option>`).join('')}
                   </select>
+                  ${g.matchedOperatorId==='__new__'?'<span class="pill pill-accent" style="font-size:10px; padding:2px 6px; margin-left:6px;">NEW</span>':''}
                 </td>
               </tr>`).join('')}
           </tbody>
@@ -5966,7 +6061,9 @@ function wireManualInvoice(actor, effectiveOp){
       const opsInTerminal = STATE.operators.filter(o=>o.terminal===VIEW.manualInvoice.terminal && o.active!==false);
       const groups = Object.entries(parsed.groups).map(([name, trips])=>{
         const match = guessOperatorMatch(name, opsInTerminal);
-        return { name, trips, matchedOperatorId: match ? match.id : null };
+        // No match in the directory → default to creating it as a NEW
+        // operator on import, instead of silently skipping its trips.
+        return { name, trips, matchedOperatorId: match ? match.id : '__new__' };
       });
       const { from: periodFrom, to: periodTo } = monthRange(parsed.detectedPeriod || VIEW.manualInvoice.period);
       MANUAL_IMPORT_PREVIEW = { terminalGuess: parsed.terminal, detectedPeriod: parsed.detectedPeriod, periodSource: parsed.periodSource,
@@ -6017,10 +6114,29 @@ function wireManualInvoice(actor, effectiveOp){
     if(!isoOk(from) || !isoOk(to)){ toast('Please key in a valid invoice period before importing.'); return; }
     if(from > to){ toast('Period "from" date is after the "to" date.'); return; }
     const terminalId = TERMINAL_IDS[VIEW.manualInvoice.terminal];
-    let imported = 0;
+    let imported = 0, createdOps = 0;
     for(const g of MANUAL_IMPORT_PREVIEW.groups){
       if(!g.matchedOperatorId) continue;
-      const op = STATE.operators.find(o=>o.id===g.matchedOperatorId);
+      let op;
+      if(g.matchedOperatorId === '__new__'){
+        // Brand-new bus company on the trip list (e.g. a terminal adds 10 new
+        // operators): create it in the directory on the spot, then invoice it.
+        const company = g.name.trim().toUpperCase();
+        op = STATE.operators.find(o=>o.terminal===VIEW.manualInvoice.terminal && o.company.toUpperCase()===company);
+        if(!op){
+          try{
+            if(window.GoStatementLive){
+              const row = await GoStatementLive.createOperator({ terminalCode: VIEW.manualInvoice.terminal, company });
+              op = { id: row.id, terminal: VIEW.manualInvoice.terminal, company: row.company, email: row.email||'', passwordHash:null, mustChange:false, active:true };
+            } else {
+              op = { id: VIEW.manualInvoice.terminal+'::'+company, terminal: VIEW.manualInvoice.terminal, company, email:'', passwordHash:null, mustChange:false, active:true };
+            }
+            STATE.operators.push(op); persist(); createdOps++;
+          }catch(err){ console.error('create operator failed', company, err); toast('Could not create operator '+company+': '+(err && err.message || err)); continue; }
+        }
+      } else {
+        op = STATE.operators.find(o=>o.id===g.matchedOperatorId);
+      }
       if(!op) continue;
       const rate = op.defaultTosRate || 10;
       const quantity = g.trips.length;
@@ -6040,7 +6156,7 @@ function wireManualInvoice(actor, effectiveOp){
     MANUAL_IMPORT_PREVIEW = null;
     VIEW.manualInvoice.period = from.slice(0,7);
     MANUAL_INVOICES_LOADED_KEY = null;
-    toast(`Imported ${imported} manual invoice(s).`);
+    toast(`Imported ${imported} manual invoice(s)${createdOps?` · ${createdOps} new operator(s) added to the directory`:''}.`);
     await loadManualInvoicesForView();
   });
 

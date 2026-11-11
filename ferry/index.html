@@ -62,7 +62,7 @@ body.embed aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap;a
 body.embed .brand{padding:0 14px 0 0;margin-right:4px;border-right:1px solid var(--line);font-size:14px}body.embed .nav{display:flex;flex-wrap:wrap;gap:2px}body.embed .nav button{width:auto}
 body.embed .side-foot{margin:0 0 0 auto;display:flex;gap:10px;align-items:center;padding:0}
 body.embed .side-foot>div:last-child{display:none}
-body.embed main{padding:12px 4px 60px}body.embed{background:transparent}
+body.embed main{padding:12px 4px 60px;max-width:none}body.embed{background:transparent}
 
 /* ---------- Daily summary (dashboard) ---------- */
 .day-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
@@ -603,7 +603,11 @@ function monthSum(station,ym){return sumCalc(rowsFor(station,ym+'-01',ym+'-31'))
 function daySum(iso){const per={};for(const s of SK)per[s]=sumCalc(rowsFor(s,iso,iso));return{per,all:sumCalc(SK.map(s=>per[s])),has:SK.filter(s=>DATA[keyOf(s,iso)])}}
 function deltaHtml(cur,prev,label){
   if(!prev)return `<span>${label}: —</span>`;
-  const p=(cur-prev)/Math.abs(prev)*100;const cls=p>0.05?'up':p<-0.05?'down':'';
+  const p=(cur-prev)/Math.abs(prev)*100;
+  // Comparing against a near-empty day (one station keyed in, the other not
+  // yet) gives nonsense like "+1450%" — show a dash instead of noise.
+  if(!isFinite(p)||Math.abs(p)>=400)return `<span>${label}: —</span>`;
+  const cls=p>0.05?'up':p<-0.05?'down':'';
   return `<span class="${cls}">${p>0.05?'▲':p<-0.05?'▼':''} ${Math.abs(p).toFixed(1)}%</span> <span>${label}</span>`;
 }
 function daySummaryHtml(){
