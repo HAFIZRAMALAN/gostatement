@@ -56,7 +56,7 @@
   }
   h1,h2,h3,h4{font-family:var(--font-display); margin:0; text-wrap:balance; color:var(--ink); letter-spacing:-.02em; font-optical-sizing:auto;}
   p{margin:0;}
-  .num{font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-feature-settings:"tnum";}
+  .num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum"; letter-spacing:-.01em;}
   a{color:inherit;}
   button, input, select{font:inherit; color:inherit;}
   ::selection{background:var(--accent-soft); color:var(--ink);}
@@ -131,10 +131,8 @@
     white-space:nowrap; position:sticky; top:0; background:var(--surface);
   }
   th:first-child, td:first-child{text-align:left;}
-  td{padding:10px 14px; border-bottom:1px solid var(--border); text-align:right; white-space:nowrap;}
+  td{padding:6px 14px; border-bottom:1px solid var(--border-soft); text-align:right; white-space:nowrap;}
   tbody tr:hover{background:var(--surface-2);}
-  tbody tr.row-kt td:first-child{box-shadow:inset 3px 0 0 var(--kt);}
-  tbody tr.row-ms td:first-child{box-shadow:inset 3px 0 0 var(--ms);}
   tfoot td{font-weight:700; border-top:2px solid var(--border); border-bottom:none; background:var(--surface-2);}
 
   /* ---------- Login ---------- */
@@ -206,6 +204,24 @@
   .menu button:hover{background:var(--surface-2);}
   .menu button.danger{color:var(--bad);}
   .dim{color:var(--ink-faint);}
+  /* Overview: ranked operator list (replaces the canvas bar chart) */
+  .leader{list-style:none; margin:2px 0 0; padding:0; display:flex; flex-direction:column; gap:2px;}
+  .leader li{display:grid; grid-template-columns:20px minmax(90px,36%) 1fr auto; align-items:center; gap:10px; padding:6px 6px; border-radius:8px;}
+  .leader li:hover{background:var(--surface-2);}
+  .leader .rank{font-size:11px; font-weight:600; color:var(--ink-faint); text-align:center;}
+  .leader .who{font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .leader .bar{height:5px; border-radius:99px; background:var(--border-soft); overflow:hidden;}
+  .leader .bar i{display:block; height:100%; border-radius:99px;}
+  .leader b.num{font-size:12.5px; font-weight:600;}
+  /* Overview: per-terminal breakdown */
+  .term-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;}
+  @media (max-width:980px){.term-grid{grid-template-columns:1fr;}}
+  .term-card .mini{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:14px;}
+  @media (max-width:560px){.term-card .mini{grid-template-columns:1fr 1fr;}}
+  .term-card .mini .l{font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:3px;}
+  .term-card .mini .v{font-size:15.5px; font-weight:650;}
+  .term-card .share{height:6px; border-radius:99px; background:var(--border-soft); margin-top:16px; overflow:hidden;}
+  .term-card .share i{display:block; height:100%; border-radius:99px;}
   .panel-head h3{font-size:14.5px; font-weight:600;}
   /* Overview stat strip: one quiet block instead of four floating boxes */
   .stat-strip{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:18px;}
@@ -238,9 +254,9 @@
   .who .role{font-size:11.5px; color:var(--sidebar-ink-dim);}
 
   #main{padding:28px 34px 60px; max-width:1360px; width:100%; min-width:0;}
-  #topbar{display:flex; align-items:flex-start; justify-content:space-between; gap:20px; margin-bottom:24px; flex-wrap:wrap;}
-  #topbar h1{font-size:23px;}
-  #topbar .desc{color:var(--ink-soft); font-size:14px; margin-top:4px;}
+  #topbar{display:flex; align-items:flex-start; justify-content:space-between; gap:20px; margin-bottom:18px; flex-wrap:wrap;}
+  #topbar h1{font-size:20px; font-weight:650;}
+  #topbar .desc{color:var(--ink-soft); font-size:13px; margin-top:3px;}
   .topbar-actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
 
   .kpi-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px;}
@@ -417,9 +433,9 @@
   /* Table premium — 44px rows, tabular nums, sticky header */
   th{
     background:var(--surface-2) !important; font-size:10.5px !important;
-    letter-spacing:.08em !important; height:44px; border-bottom:2px solid var(--border) !important;
+    letter-spacing:.08em !important; height:38px; border-bottom:1px solid var(--border) !important;
   }
-  td{ height:44px; font-size:13.5px; }
+  td{ height:38px; font-size:13px; }
   td .num, th .num{ font-variant-numeric:tabular-nums; }
   tbody tr:nth-child(even){ background:rgba(11,18,32,.015); }
   tbody tr:hover{ background:rgba(26,86,219,.04) !important; }
@@ -3360,7 +3376,7 @@ function ledgerTableHtml(rows, opts){
   // Zeros drawn as red "RM 0.00" everywhere made every row shout; a muted
   // dash keeps the eye on the cells that actually have money in them.
   const money = v => Math.abs(v) < 0.005 ? '<span class="dim">—</span>' : fmtMoney(v);
-  const charge = v => Math.abs(v) < 0.005 ? '<span class="dim">—</span>' : '<span style="color:var(--bad);">'+fmtMoney(v)+'</span>';
+  const charge = v => Math.abs(v) < 0.005 ? '<span class="dim">—</span>' : '<span style="color:var(--ink-soft);">'+fmtMoney(v)+'</span>';
   return `
     <div class="scrollx">
       <table>
@@ -3401,7 +3417,7 @@ function ledgerTableHtml(rows, opts){
               <td class="num">${charge(r[3])}</td>
               <td class="num">${charge(r[4])}</td>
               <td class="num">${money(r[5])}${cfRecBadge}</td>
-              <td class="num" style="font-weight:700; ${recon.mismatch?'color:var(--bad);':''}">${fmtMoney(r[6])}${cfBadge}</td>
+              <td class="num" style="font-weight:650; ${(recon.mismatch||r[6]<0)?'color:var(--bad);':''}">${fmtMoney(r[6])}${cfBadge}</td>
               <td><span class="pill ${STATUS_PILL[status]}">${STATUS_LABEL[status]}</span></td>
             </tr>
             ${expanded ? `<tr><td colspan="${colspan}" style="background:var(--surface-2); padding:0; cursor:default;"><div style="padding:18px;">${ledgerRowDetailInlineHtml(term, r[0], r[1])}</div></td></tr>` : ''}`;
@@ -3750,9 +3766,14 @@ function overviewTrendSeries(){
       for(const p of points){
         const dt = new Date(p.d+'T00:00:00Z'); dt.setUTCDate(dt.getUTCDate() - ((dt.getUTCDay()+6)%7));
         const wk = dt.toISOString().slice(0,10);
-        byWeek.set(wk, (byWeek.get(wk)||0) + p.v);
+        const cur = byWeek.get(wk) || { v:0, n:0 }; cur.v += p.v; cur.n++; byWeek.set(wk, cur);
       }
-      points = Array.from(byWeek.entries()).sort((a,b)=>a[0]<b[0]?-1:1).map(([d,v])=>({d,v}));
+      let wpts = Array.from(byWeek.entries()).sort((a,b)=>a[0]<b[0]?-1:1).map(([d,o])=>({d, v:o.v, n:o.n}));
+      // A half-filled week at either end plots as a fake cliff, not data —
+      // drop partial edge buckets so the line only shows full weeks.
+      while(wpts.length > 2 && wpts[wpts.length-1].n < 4) wpts.pop();
+      while(wpts.length > 2 && wpts[0].n < 4) wpts.shift();
+      points = wpts.map(({d,v})=>({d,v}));
       weekly = true;
     }
     return { label: TERMINALS[t].short, color: getCss(t==='KT'?'--kt':'--ms'), points, weekly };
@@ -3773,6 +3794,8 @@ function adminOverviewHtml(){
   const leaderboard = Array.from(byOp.entries()).map(([k,v])=>({label:k.split('::')[1], v, color: getCss(k.startsWith('KT')?'--kt':'--ms')})).sort((a,b)=>b.v-a.v).slice(0,8);
 
   const series = overviewTrendSeries();
+  const leaderMax = Math.max(1, ...leaderboard.map(o=>o.v));
+  const perTerm = terms.map(t=>{ const trs = rows.filter(r=>r[7]===t); return { t, s: sumRows(trs), ops: STATE.operators.filter(o=>o.active && o.terminal===t).length }; });
 
   return `
     <div id="topbar">
@@ -3797,19 +3820,36 @@ function adminOverviewHtml(){
     <div class="panel-grid">
       <div class="card panel">
         <div class="panel-head">
-          <div><h3>Daily net payout trend</h3><div class="sub">${series[0] ? series[0].points.length : 0} ${series[0]&&series[0].weekly?'week(s) · weekly totals':'day(s)'}</div></div>
+          <div><h3>Net payout trend</h3><div class="sub">${series[0] ? series[0].points.length : 0} ${series[0]&&series[0].weekly?'full week(s) · weekly totals':'day(s)'}</div></div>
           <div id="chart-tip" class="num" style="display:none; font-size:12.5px; color:var(--ink-soft); background:var(--surface-2); padding:4px 10px; border-radius:6px;"></div>
         </div>
-        <canvas id="adminChart" style="width:100%; height:190px; display:block;"></canvas>
+        <canvas id="adminChart" style="width:100%; height:216px; display:block;"></canvas>
         <div class="legend-row" style="margin-top:10px;">
           ${series.map(s=>`<span class="legend-item"><span class="legend-dot" style="background:${s.color};"></span>${s.label}</span>`).join('')}
         </div>
       </div>
       <div class="card panel">
-        <div class="panel-head"><h3>Top operators (net payout)</h3></div>
-        <canvas id="leaderChart" style="width:100%; height:${Math.max(180, leaderboard.length*34)}px; display:block;"></canvas>
+        <div class="panel-head"><div><h3>Top operators</h3><div class="sub">net payout, selected range</div></div></div>
+        ${leaderboard.length ? `<ol class="leader">
+          ${leaderboard.map((o,i)=>`<li><span class="rank">${i+1}</span><span class="who" title="${esc(o.label)}">${esc(o.label)}</span><span class="bar"><i style="width:${(Math.max(0,o.v)/leaderMax*100).toFixed(1)}%; background:${o.color};"></i></span><b class="num">${fmtMoney(o.v)}</b></li>`).join('')}
+        </ol>` : '<div class="empty">No data in this range.</div>'}
       </div>
     </div>
+    ${perTerm.length > 1 ? `<div class="term-grid">
+      ${perTerm.map(x=>{
+        const share = totals.final ? Math.max(0, Math.min(100, x.s.final/totals.final*100)) : 0;
+        const color = getCss(x.t==='KT'?'--kt':'--ms');
+        return `<div class="card panel term-card">
+        <div class="panel-head" style="margin-bottom:0;"><div><h3 style="display:flex; align-items:center; gap:8px;"><span class="legend-dot" style="background:${color};"></span>${TERMINALS[x.t].name}</h3><div class="sub">${x.ops} active operator(s) · ${share.toFixed(0)}% of net payout</div></div></div>
+        <div class="mini">
+          <div><div class="l">Sales</div><div class="v num">${fmtMoney(x.s.sales)}</div></div>
+          <div><div class="l">Charges</div><div class="v num">${fmtMoney(-(x.s.stdCharge+x.s.manualCharge))}</div></div>
+          <div><div class="l">Undersales</div><div class="v num">${fmtMoney(x.s.undersales)}</div></div>
+          <div><div class="l">Net payout</div><div class="v num" style="color:${color};">${fmtMoney(x.s.final)}</div></div>
+        </div>
+        <div class="share"><i style="width:${share.toFixed(1)}%; background:${color};"></i></div>
+      </div>`;}).join('')}
+    </div>` : ''}
   `;
 }
 function terminalSelectHtml(){
@@ -3951,23 +3991,23 @@ function adminLedgerHtml(){
   rows = VIEW.sortDir === 'asc' ? rows.slice().sort((a,b)=>a[1]<b[1]?-1:1) : rows.slice().sort((a,b)=>a[1]<b[1]?1:-1);
   return `
     <div id="topbar">
-      <div><h1>Settlement Ledger — All Operators</h1><div class="desc">${terms.map(t=>TERMINALS[t].short).join(' + ')}</div></div>
+      <div><h1>Settlement Ledger</h1><div class="desc">All operators · ${terms.map(t=>TERMINALS[t].short).join(' + ')} · ${rows.length} row(s)</div></div>
       <div class="topbar-actions">
         ${terminalSelectHtml()}
         ${rangeControlHtml(terms[0])}
-        <button class="btn btn-sm" id="btn-sort">${VIEW.sortDir==='desc'?'Newest first':'Oldest first'}</button>
-        <button class="btn btn-sm" id="btn-export-csv">Download CSV</button>
-        <button class="btn btn-accent btn-sm" id="btn-export-xls">Download Excel</button>
       </div>
     </div>
     ${adjustmentsSearchPanelHtml()}
     <div class="card table-card">
       <div class="table-toolbar">
         <input type="text" id="ledgerSearch" placeholder="Filter by operator code…" value="${esc(VIEW.ledgerSearch)}">
-        <button class="btn btn-sm" id="btn-bulk-prefinalize">Pre-finalize visible rows</button>
-        <button class="btn btn-sm" id="btn-bulk-finalize">Finalize visible rows</button>
-        <button class="btn btn-sm" id="btn-adj-toggle">${VIEW.adjPanelOpen?'Hide deduction search':'Search deductions &amp; refunds'}</button>
-        <span style="margin-left:auto; font-size:12.5px; color:var(--ink-faint);">${rows.length} row(s)</span>
+        <button class="btn btn-sm" id="btn-sort">${VIEW.sortDir==='desc'?'Newest first':'Oldest first'}</button>
+        <button class="btn btn-sm" id="btn-adj-toggle">${VIEW.adjPanelOpen?'Hide deduction search':'Deductions &amp; refunds'}</button>
+        <span style="margin-left:auto;"></span>
+        <button class="btn btn-sm" id="btn-bulk-prefinalize">Pre-finalize visible</button>
+        <button class="btn btn-sm" id="btn-bulk-finalize">Finalize visible</button>
+        <button class="btn btn-sm" id="btn-export-csv">CSV</button>
+        <button class="btn btn-accent btn-sm" id="btn-export-xls">Excel</button>
       </div>
       ${ledgerTableHtml(rows, {showCompany:true, showTerminal:true})}
     </div>
@@ -4884,7 +4924,7 @@ function renderMain(){
       // Ferry module (Mersing + Tanjung Gemok) is its own page, embedded so one login covers it.
       // Keep the iframe alive across re-renders so it never reloads/flickers.
       if(main.querySelector('#ferryFrame')) return;
-      html = '<iframe id="ferryFrame" src="ferry/index.html?embed=1" title="Ferry" style="width:100%;height:calc(100vh - 36px);border:0;border-radius:12px;background:transparent"></iframe>';
+      html = '<iframe id="ferryFrame" src="ferry/index.html?embed=1" title="Ferry" style="width:100%;height:100%;border:0;display:block;background:transparent"></iframe>';
     }
     else html = adminOverviewHtml();
   }
@@ -4892,7 +4932,12 @@ function renderMain(){
   if(BUS_ROUTES.includes(VIEW.route)) VIEW.lastBusTab = VIEW.route;
   // The Ferry iframe should use the whole window — capping #main at 1360px
   // left a dead strip (and a stray scrollbar) down the right on wide screens.
-  main.style.maxWidth = VIEW.route === 'ferry' ? 'none' : '';
+  const isFerryRoute = VIEW.route === 'ferry';
+  main.style.maxWidth = isFerryRoute ? 'none' : '';
+  main.style.padding = isFerryRoute ? '0' : '';
+  main.style.height = isFerryRoute ? '100vh' : '';
+  main.style.overflow = isFerryRoute ? 'hidden' : '';
+  document.body.style.overflowY = isFerryRoute ? 'hidden' : '';
   main.innerHTML = busTabBarHtml(actor) + html;
   const subnav = main.querySelector('.subnav-tabs');
   if(subnav) subnav.addEventListener('click', e=>{
@@ -4980,18 +5025,8 @@ function wireMain(actor, effectiveOp){
     }
   } else if(VIEW.route !== 'directory' && VIEW.route !== 'ledger' && VIEW.route !== 'entry' && VIEW.route !== 'admins' && VIEW.route !== 'reconcile' && VIEW.route !== 'undersales'){
     const adminChart = document.getElementById('adminChart');
-    const leaderChart = document.getElementById('leaderChart');
     if(adminChart){
       drawAreaChart(adminChart, overviewTrendSeries(), { tipEl: document.getElementById('chart-tip') });
-    }
-    if(leaderChart){
-      const terms = terminalsInScope();
-      let rows = [];
-      for(const t of terms){ const r = rangeForTerminal(t); rows = rows.concat(rowsForTerminal(t).filter(row=>inRange(row[1], r.from, r.to)).map(row=>[...row.slice(0,7), t])); }
-      const byOp = new Map();
-      for(const row of rows){ const key = row[7]+'::'+row[0]; const cur = byOp.get(key) || {v:0, t:row[7], label:row[0]}; cur.v += row[6]; byOp.set(key, cur); }
-      const bars = Array.from(byOp.values()).map(o=>({label:o.label,v:o.v,color:getCss(o.t==='KT'?'--kt':'--ms')})).sort((a,b)=>b.v-a.v).slice(0,8);
-      drawBarChart(leaderChart, bars);
     }
   }
 
