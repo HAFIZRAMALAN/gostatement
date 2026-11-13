@@ -139,9 +139,13 @@ body.embed main{padding:12px 4px 60px;max-width:none}body.embed{background:trans
 .inv table.an tr.t td{font-weight:700;border-top:1px solid #000;border-bottom:1px solid #000}
 @media print{
  @page{size:A4;margin:0}
- body{background:#fff}.app>aside,main>*:not(#invoiceHostWrap){display:none!important}
- main{padding:0;max-width:none}#invoiceHostWrap{display:block!important}#invoiceHost{background:none;padding:0;border-radius:0}
- .inv{box-shadow:none;margin:0;width:210mm;height:297mm;overflow:hidden}.toast,.modal{display:none!important}
+ html,body{background:#fff!important;margin:0!important;padding:0!important;height:auto!important}
+ /* hide the whole app shell (it was taking a blank first page) and show only the invoice sheets */
+ .app,#modalHost,#toastHost,.toast,.modal,.draftbar{display:none!important}
+ #invoiceHostWrap{display:block!important;margin:0;padding:0}
+ #invoiceHost{background:none!important;padding:0!important;border-radius:0!important;margin:0!important}
+ .inv{box-shadow:none!important;margin:0!important;width:210mm;height:296.5mm;overflow:hidden;page-break-after:always;break-after:page;page-break-inside:avoid}
+ #invoiceHost .inv:last-of-type{page-break-after:auto;break-after:auto}
 }
 </style>
 </head>
