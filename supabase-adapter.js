@@ -559,7 +559,37 @@
     if (channel) db.removeChannel(channel);
   }
 
+  // ---- Ferry project (separate tables; see ferry/index.html) ----
+  async function loadFerryCalc() {
+    let all = [], from = 0;
+    for (;;) {
+      const { data, error } = await db.from("ferry_daily_calc").select("*").order("entry_date").range(from, from + 999);
+      if (error) throw error;
+      all = all.concat(data || []);
+      if (!data || data.length < 1000) break;
+      from += 1000;
+    }
+    return all;
+  }
+  async function loadFerryUndersales() {
+    const { data, error } = await db.from("ferry_undersales").select("station, entry_date, kind, amount").order("entry_date").range(0, 4999);
+    if (error) throw error;
+    return data || [];
+  }
+  async function myFerryStation() {
+    const { data, error } = await db.rpc("my_ferry_station");
+    if (error) return null;
+    return data || null;
+  }
+  async function ferryAccount(action, payload) {
+    const { data, error } = await db.functions.invoke("ferry-account", { body: Object.assign({ action }, payload || {}) });
+    if (error) { let msg = error.message; try { const b = await error.context.json(); if (b?.error) msg = b.error; } catch (_) {} throw new Error(msg); }
+    if (data?.error) throw new Error(data.error);
+    return data;
+  }
+
   window.GoStatementLive = {
+    loadFerryCalc, loadFerryUndersales, myFerryStation, ferryAccount,
     db,
     // auth
     signIn, signOut, getSession, getMyProfile,

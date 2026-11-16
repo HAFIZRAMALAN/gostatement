@@ -17,6 +17,7 @@
     --sidebar:#0B1220; --sidebar-ink:#E5E0D5; --sidebar-ink-dim:#9D9B96; --sidebar-active:#1A2840;
     --kt:#1A56DB; --kt-soft:#E8EEFF; --kt-ink:#123499;
     --ms:#7C3AED; --ms-soft:#F3E8FF; --ms-ink:#5B21B6;
+    --msg:#0D9488; --tgm:#D97706;
     --shadow: 0 1px 3px rgba(11,18,32,.08), 0 8px 24px -12px rgba(11,18,32,.16);
     --radius:10px;
     --font-display:'Inter',-apple-system,system-ui,'Segoe UI',Roboto,sans-serif;
@@ -33,6 +34,7 @@
       --sidebar:#0A1226; --sidebar-ink:#E3EBFA; --sidebar-ink-dim:#8FA2C7; --sidebar-active:#1B2A4D;
       --kt:#5B9DFF; --kt-soft:#1D3A6E; --kt-ink:#BCD6FF;
       --ms:#B79CFF; --ms-soft:#33265F; --ms-ink:#E3D8FF;
+    --msg:#2DD4BF; --tgm:#FBBF24;
       --shadow: 0 1px 2px rgba(3,8,22,.35), 0 10px 28px -14px rgba(3,8,22,.55);
     }
   }
@@ -45,6 +47,7 @@
     --sidebar:#0A1226; --sidebar-ink:#E3EBFA; --sidebar-ink-dim:#8FA2C7; --sidebar-active:#1B2A4D;
     --kt:#5B9DFF; --kt-soft:#1D3A6E; --kt-ink:#BCD6FF;
     --ms:#B79CFF; --ms-soft:#33265F; --ms-ink:#E3D8FF;
+    --msg:#2DD4BF; --tgm:#FBBF24;
     --shadow: 0 1px 2px rgba(3,8,22,.35), 0 10px 28px -14px rgba(3,8,22,.55);
   }
 
@@ -120,6 +123,7 @@
   .pill-bad{background:var(--bad-soft); color:var(--bad);}
   .pill-neutral{background:var(--surface-2); color:var(--ink-soft); border:1px solid var(--border);}
   .pill-accent{background:var(--accent-soft); color:var(--accent);}
+  .pill-warn{background:rgba(255,149,0,.16); color:#E08600;}
   .pill-kt{background:var(--kt-soft); color:var(--kt-ink);}
   .pill-ms{background:var(--ms-soft); color:var(--ms-ink);}
   .hidden{display:none !important;}
@@ -1333,6 +1337,7 @@ async function cloudLoadEntries(){
 async function cloudLoadAll(){
   const dirOk = await cloudLoadDirectory();
   const entriesOk = await cloudLoadEntries();
+  const a = currentActor(); if(a && a.type === 'admin') await cloudLoadFerry();
   return dirOk && entriesOk;
 }
 
@@ -1342,7 +1347,9 @@ async function cloudLoadAll(){
 function enterAppAndLoadEntries(){
   enterApp();
   startCloudRealtime(()=>{ if(document.getElementById('app').classList.contains('active')) renderMain(); });
-  cloudLoadEntries().then(()=>{ if(document.getElementById('app').classList.contains('active')) renderMain(); });
+  cloudLoadEntries().then(()=>{ if(document.getElementById('app').classList.contains('active')) renderMain(); })
+    .then(()=>{ const a = currentActor(); return (a && a.type === 'admin') ? cloudLoadFerry() : false; })
+    .then(ok=>{ if(ok && document.getElementById('app').classList.contains('active')) renderMain(); });
 }
 
 function startCloudRealtime(onChanged){
@@ -1873,6 +1880,7 @@ async function handleLogin(e){
           return;
         }
       }
+      try{ const fst = await GoStatementLive.myFerryStation(); if(fst){ location.replace('ferry/index.html?mode=operator&station='+encodeURIComponent(fst)); return; } }catch(e){}
       await GoStatementLive.signOut(); // authenticated but no usable profile — fall through
     }catch(err){
       // Keep the reason: a dropped/blocked request is NOT the same as a
@@ -2189,7 +2197,7 @@ function renderShell(){
         if(isActive) return;
         const last = entry.tabs.find(t=>t.route===VIEW.lastBusTab);
         VIEW.route = (last || entry.tabs[0]).route;
-      } else VIEW.route = entry.route;
+      } else { if(entry.route === 'ferry'){ VIEW.ferryStation = null; VIEW.ferryPage = null; } VIEW.route = entry.route; }
       renderShell();
       if(entry.route === 'admins' && window.GoStatementLive){ await cloudLoadDirectory(); renderMain(); }
     });
@@ -2328,7 +2336,7 @@ function drawAreaChartNow(canvas, series, opts){
   const W = canvas.width, H = canvas.height;
   const pad = {l:8*dpr, r:8*dpr, t:14*dpr, b:22*dpr};
   ctx.clearRect(0,0,W,H);
-  const allPoints = series.flatMap(s=>s.points);
+  const allPoints = series.flatMap(s=>s.points).filter(p=>p.v!==null);
   if(!allPoints.length) return;
   const vals = allPoints.map(p=>p.v);
   const max = Math.max(...vals, 1);
@@ -2348,23 +2356,24 @@ function drawAreaChartNow(canvas, series, opts){
 
   for(const s of series){
     const pts = s.points;
-    if(!pts.length) continue;
+    const fi = pts.findIndex(p=>p.v!==null);
+    if(fi < 0) continue;
+    let li = pts.length-1; while(li > fi && pts[li].v === null) li--;
     const grad = ctx.createLinearGradient(0,pad.t,0,H-pad.b);
     grad.addColorStop(0, hexToRgba(s.color, .26));
     grad.addColorStop(1, hexToRgba(s.color, 0));
     ctx.beginPath();
-    ctx.moveTo(x(0), y(pts[0].v));
-    pts.forEach((p,i)=> ctx.lineTo(x(i), y(p.v)));
-    ctx.lineTo(x(pts.length-1), H-pad.b);
-    ctx.lineTo(x(0), H-pad.b);
+    ctx.moveTo(x(fi), y(pts[fi].v));
+    for(let i=fi;i<=li;i++) ctx.lineTo(x(i), y(pts[i].v));
+    ctx.lineTo(x(li), H-pad.b);
+    ctx.lineTo(x(fi), H-pad.b);
     ctx.closePath();
     ctx.fillStyle = grad;
     ctx.fill();
     ctx.beginPath();
-    pts.forEach((p,i)=> i===0 ? ctx.moveTo(x(i), y(p.v)) : ctx.lineTo(x(i), y(p.v)));
+    for(let i=fi;i<=li;i++) i===fi ? ctx.moveTo(x(i), y(pts[i].v)) : ctx.lineTo(x(i), y(pts[i].v));
     ctx.strokeStyle = s.color; ctx.lineWidth = 2*dpr; ctx.lineJoin='round'; ctx.stroke();
-    const lastI = pts.length-1;
-    ctx.beginPath(); ctx.arc(x(lastI), y(pts[lastI].v), 3.4*dpr, 0, Math.PI*2);
+    ctx.beginPath(); ctx.arc(x(li), y(pts[li].v), 3.4*dpr, 0, Math.PI*2);
     ctx.fillStyle = s.color; ctx.fill();
     ctx.lineWidth = 2*dpr; ctx.strokeStyle = getCss('--surface'); ctx.stroke();
   }
@@ -2386,7 +2395,7 @@ function drawAreaChartNow(canvas, series, opts){
     const tip = opts.tipEl;
     if(tip){
       tip.style.display='block';
-      tip.textContent = series.map(s=> s.points[idx] ? `${s.label}: ${fmtMoney(s.points[idx].v)}` : '').filter(Boolean).join('  ·  ') + `  ·  ${fmtDate(refPts[idx].d)}`;
+      tip.textContent = series.map(s=> (s.points[idx] && s.points[idx].v !== null) ? `${s.label}: ${fmtMoney(s.points[idx].v)}` : '').filter(Boolean).join('  ·  ') + `  ·  ${fmtDate(refPts[idx].d)}`;
     }
   };
   canvas.onmouseleave = ()=>{ if(opts.tipEl) opts.tipEl.style.display='none'; };
@@ -3821,64 +3830,90 @@ function adminUndersalesHtml(){
 /* ============================================================
    ADMIN — OVERVIEW
    ============================================================ */
-function terminalsInScope(){ return VIEW.adminTerminal === 'ALL' ? ['KT','MS'] : [VIEW.adminTerminal]; }
+function terminalsInScope(){ return VIEW.adminTerminal === 'ALL' ? ['KT','MS'] : VIEW.adminTerminal === 'FERRY' ? [] : [VIEW.adminTerminal]; }
 // Trend series for the Overview chart. Long ranges roll up into weekly
 // totals: hundreds of daily points squeezed into one canvas read as spikes,
 // not a trend.
 function overviewTrendSeries(){
   const terms = terminalsInScope();
-  return terms.map(t=>{
+  const raw = [];
+  for(const t of terms){
     const r = rangeForTerminal(t);
-    const trows = rowsForTerminal(t).filter(row=>inRange(row[1], r.from, r.to));
-    const byDate = new Map();
-    for(const row of trows){ byDate.set(row[1], (byDate.get(row[1])||0) + row[6]); }
-    let points = Array.from(byDate.entries()).sort((a,b)=>a[0]<b[0]?-1:1).map(([d,v])=>({d,v}));
-    let weekly = false;
-    if(points.length > 70){
-      const byWeek = new Map();
-      for(const p of points){
-        const dt = new Date(p.d+'T00:00:00Z'); dt.setUTCDate(dt.getUTCDate() - ((dt.getUTCDay()+6)%7));
-        const wk = dt.toISOString().slice(0,10);
-        const cur = byWeek.get(wk) || { v:0, n:0 }; cur.v += p.v; cur.n++; byWeek.set(wk, cur);
-      }
-      let wpts = Array.from(byWeek.entries()).sort((a,b)=>a[0]<b[0]?-1:1).map(([d,o])=>({d, v:o.v, n:o.n}));
-      // A half-filled week at either end plots as a fake cliff, not data —
-      // drop partial edge buckets so the line only shows full weeks.
-      while(wpts.length > 2 && wpts[wpts.length-1].n < 4) wpts.pop();
-      while(wpts.length > 2 && wpts[0].n < 4) wpts.shift();
-      points = wpts.map(({d,v})=>({d,v}));
-      weekly = true;
+    const map = new Map();
+    for(const row of rowsForTerminal(t).filter(row=>inRange(row[1], r.from, r.to))) map.set(row[1], (map.get(row[1])||0) + row[6]);
+    raw.push({ label: TERMINALS[t].short, color: getCss(t==='KT'?'--kt':'--ms'), map });
+  }
+  if(ferryInScope()){
+    const fr = ferryRange();
+    for(const k of Object.keys(FERRY_STATIONS)){
+      const map = new Map();
+      for(const x of FERRY_ROWS) if(x.station===k && x.entry_date>=fr.from && x.entry_date<=fr.to) map.set(x.entry_date, (map.get(x.entry_date)||0) + ferryNum(x.net_payable));
+      if(map.size) raw.push({ label: 'Ferry · '+FERRY_STATIONS[k].name, color: getCss(FERRY_STATIONS[k].cssVar), map });
     }
-    return { label: TERMINALS[t].short, color: getCss(t==='KT'?'--kt':'--ms'), points, weekly };
-  });
+  }
+  const allDates = Array.from(new Set(raw.flatMap(s=>Array.from(s.map.keys())))).sort();
+  if(!allDates.length) return [];
+  // Long ranges roll up into weekly totals (hundreds of daily points read as spikes, not a trend).
+  const weekly = allDates.length > 70;
+  const keyOf = d=>{ if(!weekly) return d; const dt = new Date(d+'T00:00:00Z'); dt.setUTCDate(dt.getUTCDate() - ((dt.getUTCDay()+6)%7)); return dt.toISOString().slice(0,10); };
+  const buckets = new Map();
+  for(const d of allDates){ const k = keyOf(d); buckets.set(k, (buckets.get(k)||0)+1); }
+  let keys = Array.from(buckets.keys()).sort();
+  // A half-filled week at either end plots as a fake cliff, not data.
+  if(weekly){ while(keys.length > 2 && buckets.get(keys[keys.length-1]) < 4) keys.pop(); while(keys.length > 2 && buckets.get(keys[0]) < 4) keys.shift(); }
+  return raw.map(s=>{
+    const vals = keys.map(()=>null);
+    const idx = new Map(keys.map((k,i)=>[k,i]));
+    for(const [d,v] of s.map){ const i = idx.get(keyOf(d)); if(i!=null) vals[i] = (vals[i]||0) + v; }
+    let first = vals.findIndex(v=>v!==null), last = vals.length-1; while(last>first && vals[last]===null) last--;
+    const points = keys.map((k,i)=>({ d:k, v: first<0 || i<first || i>last ? null : (vals[i]===null ? 0 : vals[i]) }));
+    return { label:s.label, color:s.color, points, weekly };
+  }).filter(s=>s.points.some(p=>p.v!==null));
 }
 function adminOverviewHtml(){
   const terms = terminalsInScope();
+  const withFerry = ferryInScope();
   let rows = [];
   for(const t of terms){
     const r = rangeForTerminal(t);
     rows = rows.concat(rowsForTerminal(t).filter(row=>inRange(row[1], r.from, r.to)).map(row=>[...row.slice(0,7), t]));
   }
   const totals = sumRows(rows);
-  const activeOps = STATE.operators.filter(o=>o.active && terms.includes(o.terminal)).length;
+  let activeOps = STATE.operators.filter(o=>o.active && terms.includes(o.terminal)).length;
 
   const byOp = new Map();
   for(const row of rows){ const key = row[7]+'::'+row[0]; byOp.set(key, (byOp.get(key)||0) + row[6]); }
-  const leaderboard = Array.from(byOp.entries()).map(([k,v])=>({label:k.split('::')[1], v, color: getCss(k.startsWith('KT')?'--kt':'--ms')})).sort((a,b)=>b.v-a.v).slice(0,8);
+  const leaderboard = Array.from(byOp.entries()).map(([k,v])=>({label:k.split('::')[1], v, color: getCss(k.startsWith('KT')?'--kt':'--ms')}));
+
+  // Ferry project: same numbers, same shape.
+  const fr = ferryRange();
+  const fstats = !withFerry ? [] : Object.keys(FERRY_STATIONS).map(k=>({ k, f:FERRY_STATIONS[k], st:ferryStats(k, fr) }));
+  for(const x of fstats){
+    totals.sales += x.st.collection; totals.stdCharge += -x.st.charges; totals.undersales += -x.st.bal; totals.final += x.st.net;
+    activeOps += 1;
+    leaderboard.push({ label: x.f.short, v: x.st.net, color: getCss(x.f.cssVar) });
+  }
+  leaderboard.sort((a,b)=>b.v-a.v);
+  const top = leaderboard.slice(0,8);
 
   const series = overviewTrendSeries();
-  const leaderMax = Math.max(1, ...leaderboard.map(o=>o.v));
-  const perTerm = terms.map(t=>{ const trs = rows.filter(r=>r[7]===t); return { t, s: sumRows(trs), ops: STATE.operators.filter(o=>o.active && o.terminal===t).length }; });
+  const leaderMax = Math.max(1, ...top.map(o=>o.v));
+  const cards = [
+    ...terms.map(t=>{ const trs = rows.filter(r=>r[7]===t); const s = sumRows(trs);
+      return { name: TERMINALS[t].name, color: getCss(t==='KT'?'--kt':'--ms'), ops: STATE.operators.filter(o=>o.active && o.terminal===t).length, opsLabel:'active operator(s)', sales:s.sales, charges:-(s.stdCharge+s.manualCharge), undersales:s.undersales, net:s.final, project:'Bus' }; }),
+    ...fstats.map(x=>({ name: 'Ferry · '+x.f.name, color: getCss(x.f.cssVar), ops: 1, opsLabel:'ferry company', sales:x.st.collection, charges:x.st.charges, undersales:-x.st.bal, net:x.st.net, project:'Ferry' })),
+  ];
+  const scopeLabel = VIEW.adminTerminal === 'ALL' ? 'all projects' : VIEW.adminTerminal === 'FERRY' ? 'Ferry' : 'Bus';
 
   return `
     <div id="topbar">
       <div>
         <h1>Settlement Overview</h1>
-        <div class="desc">Admin view across terminals &middot; ${activeOps} active operator(s)</div>
+        <div class="desc">Admin view across ${scopeLabel} &middot; ${activeOps} active operator(s)${withFerry && !FERRY_LOADED ? ' &middot; loading ferry…' : ''}</div>
       </div>
       <div class="topbar-actions">
         ${terminalSelectHtml()}
-        ${rangeControlHtml(terms[0])}
+        ${rangeControlHtml(terms[0] || 'KT')}
         <button class="btn btn-accent btn-sm" id="btn-terminal-statement">Generate Terminal Statement</button>
       </div>
     </div>
@@ -3903,24 +3938,23 @@ function adminOverviewHtml(){
       </div>
       <div class="card panel">
         <div class="panel-head"><div><h3>Top operators</h3><div class="sub">net payout, selected range</div></div></div>
-        ${leaderboard.length ? `<ol class="leader">
-          ${leaderboard.map((o,i)=>`<li><span class="rank">${i+1}</span><span class="who" title="${esc(o.label)}">${esc(o.label)}</span><span class="bar"><i style="width:${(Math.max(0,o.v)/leaderMax*100).toFixed(1)}%; background:${o.color};"></i></span><b class="num">${fmtMoney(o.v)}</b></li>`).join('')}
+        ${top.length ? `<ol class="leader">
+          ${top.map((o,i)=>`<li><span class="rank">${i+1}</span><span class="who" title="${esc(o.label)}">${esc(o.label)}</span><span class="bar"><i style="width:${(Math.max(0,o.v)/leaderMax*100).toFixed(1)}%; background:${o.color};"></i></span><b class="num">${fmtMoney(o.v)}</b></li>`).join('')}
         </ol>` : '<div class="empty">No data in this range.</div>'}
       </div>
     </div>
-    ${perTerm.length > 1 ? `<div class="term-grid">
-      ${perTerm.map(x=>{
-        const share = totals.final ? Math.max(0, Math.min(100, x.s.final/totals.final*100)) : 0;
-        const color = getCss(x.t==='KT'?'--kt':'--ms');
+    ${cards.length > 1 ? `<div class="term-grid">
+      ${cards.map(x=>{
+        const share = totals.final ? Math.max(0, Math.min(100, x.net/totals.final*100)) : 0;
         return `<div class="card panel term-card">
-        <div class="panel-head" style="margin-bottom:0;"><div><h3 style="display:flex; align-items:center; gap:8px;"><span class="legend-dot" style="background:${color};"></span>${TERMINALS[x.t].name}</h3><div class="sub">${x.ops} active operator(s) · ${share.toFixed(0)}% of net payout</div></div></div>
+        <div class="panel-head" style="margin-bottom:0;"><div><h3 style="display:flex; align-items:center; gap:8px;"><span class="legend-dot" style="background:${x.color};"></span>${esc(x.name)}</h3><div class="sub">${x.ops} ${x.opsLabel} · ${share.toFixed(0)}% of net payout</div></div></div>
         <div class="mini">
-          <div><div class="l">Sales</div><div class="v num">${fmtMoney(x.s.sales)}</div></div>
-          <div><div class="l">Charges</div><div class="v num">${fmtMoney(-(x.s.stdCharge+x.s.manualCharge))}</div></div>
-          <div><div class="l">Undersales</div><div class="v num">${fmtMoney(x.s.undersales)}</div></div>
-          <div><div class="l">Net payout</div><div class="v num" style="color:${color};">${fmtMoney(x.s.final)}</div></div>
+          <div><div class="l">Sales</div><div class="v num">${fmtMoney(x.sales)}</div></div>
+          <div><div class="l">Charges</div><div class="v num">${fmtMoney(x.charges)}</div></div>
+          <div><div class="l">Undersales</div><div class="v num">${fmtMoney(x.undersales)}</div></div>
+          <div><div class="l">Net payout</div><div class="v num" style="color:${x.color};">${fmtMoney(x.net)}</div></div>
         </div>
-        <div class="share"><i style="width:${share.toFixed(1)}%; background:${color};"></i></div>
+        <div class="share"><i style="width:${share.toFixed(1)}%; background:${x.color};"></i></div>
       </div>`;}).join('')}
     </div>` : ''}
   `;
@@ -3928,9 +3962,14 @@ function adminOverviewHtml(){
 function terminalSelectHtml(){
   return `
     <select id="adminTerminalSel" class="btn btn-sm" style="font-weight:600;">
-      <option value="ALL" ${VIEW.adminTerminal==='ALL'?'selected':''}>Both Terminals</option>
-      <option value="KT" ${VIEW.adminTerminal==='KT'?'selected':''}>Kuala Terengganu Bus Terminal</option>
-      <option value="MS" ${VIEW.adminTerminal==='MS'?'selected':''}>Melaka Sentral</option>
+      <option value="ALL" ${VIEW.adminTerminal==='ALL'?'selected':''}>All projects</option>
+      <optgroup label="Bus Settlement">
+        <option value="KT" ${VIEW.adminTerminal==='KT'?'selected':''}>Kuala Terengganu Bus Terminal</option>
+        <option value="MS" ${VIEW.adminTerminal==='MS'?'selected':''}>Melaka Sentral</option>
+      </optgroup>
+      <optgroup label="Ferry">
+        <option value="FERRY" ${VIEW.adminTerminal==='FERRY'?'selected':''}>Ferry · Mersing + Tanjung Gemok</option>
+      </optgroup>
     </select>`;
 }
 
@@ -3942,11 +3981,85 @@ function opRangeTotal(op){
   const rows = rowsFor(op.terminal, op.company).filter(row=>inRange(row[1], r.from, r.to));
   return sumRows(rows);
 }
+
+/* ============================================================
+   PROJECT REGISTRY — every project (Bus, Ferry, and any future one) feeds the
+   Overview through the same small shape: cards[] + leaderboard[] + trend series.
+   Add a new project by writing a loader + a function returning that shape,
+   then listing it in PROJECT_SUMMARIES below.
+   ============================================================ */
+const FERRY_STATIONS = {
+  MERSING:  { code:'MSG', name:'Mersing',       short:'BG Travel (MSG)',   company:'BISTARI GEMILANG TRAVEL SDN BHD',   email:'bluewater_express@yahoo.com',  cssVar:'--msg' },
+  TG_GEMOK: { code:'TGM', name:'Tanjung Gemok', short:'BG Shipping (TGM)', company:'BISTARI GEMILANG SHIPPING SDN BHD', email:'bluewaterexpress01@gmail.com', cssVar:'--tgm' },
+};
+let FERRY_ROWS = [], FERRY_UND = [], FERRY_LOGINS = {}, FERRY_LOADED = false;
+function ferryNum(v){ return v == null ? 0 : +v; }
+async function cloudLoadFerry(){
+  if(!window.GoStatementLive || !GoStatementLive.loadFerryCalc) return false;
+  try{
+    FERRY_ROWS = await GoStatementLive.loadFerryCalc();
+    FERRY_UND = await GoStatementLive.loadFerryUndersales();
+    FERRY_LOADED = true; return true;
+  }catch(e){ console.warn('GoStatement: ferry data not loaded', e); return false; }
+}
+async function loadFerryLogins(){
+  try{ const r = await GoStatementLive.ferryAccount('status'); FERRY_LOGINS = r.stations || {}; }catch(e){ console.warn('ferry logins', e); }
+}
+function ferryDates(){ return Array.from(new Set(FERRY_ROWS.map(r=>r.entry_date))).sort(); }
+// Same range modes as the bus side, applied to the ferry's own latest data.
+function ferryRange(){
+  const dates = ferryDates();
+  if(!dates.length) return { from:'9999-12-31', to:'0000-01-01' };
+  const minD = dates[0], maxD = dates[dates.length-1];
+  if(VIEW.rangeMode === 'custom') return { from: VIEW.customFrom || minD, to: VIEW.customTo || maxD };
+  if(VIEW.rangeMode === 'last7'){ return { from: dates[Math.max(0, dates.length-7)], to: maxD }; }
+  if(VIEW.rangeMode === 'last30'){ return { from: dates[Math.max(0, dates.length-30)], to: maxD }; }
+  return { from: minD, to: maxD };
+}
+function ferryStats(station, r){
+  let collection=0, charges=0, net=0, tickets=0;
+  for(const x of FERRY_ROWS){
+    if(x.station !== station || x.entry_date < r.from || x.entry_date > r.to) continue;
+    collection += ferryNum(x.collection); charges += ferryNum(x.charges); net += ferryNum(x.net_payable); tickets += ferryNum(x.tickets);
+  }
+  let bal = 0;
+  for(const u of FERRY_UND){ if(u.station === station && u.entry_date <= r.to) bal += (u.kind==='undersale' ? 1 : -1) * ferryNum(u.amount); }
+  const rd = v=>Math.round((v+Number.EPSILON)*100)/100;
+  return { collection: rd(collection), charges: rd(charges), net: rd(net), tickets, bal: rd(bal) };
+}
+function ferryInScope(){ return VIEW.adminTerminal === 'ALL' || VIEW.adminTerminal === 'FERRY'; }
+function ferryFrameSrc(){
+  const st = VIEW.ferryStation, pg = VIEW.ferryPage;
+  return 'ferry/index.html?embed=1' + (st ? '&mode=operator&station='+encodeURIComponent(st)+'&page='+encodeURIComponent(pg||'dash') : '');
+}
+async function ferryLoginAction(station, mode){
+  const f = FERRY_STATIONS[station];
+  try{
+    const res = mode === 'create'
+      ? await GoStatementLive.ferryAccount('ensure', { station, email: f.email, company: f.company })
+      : await GoStatementLive.ferryAccount('reset', { station });
+    await loadFerryLogins();
+    if(res.password){
+      openModal(`
+        <h3>${mode==='create'?'Account created':'Password reset'}</h3>
+        <span class="sub">Share these with ${esc(f.company)} through a secure channel. It is a real cloud login and works from any device; they only see their own ${esc(f.name)} ferry settlements.</span>
+        <div class="credential-box">
+          <div><b>Login ID:</b> ${esc(res.email)}</div>
+          <div><b>Temporary password:</b> ${esc(res.password)}</div>
+          <div><b>Project:</b> Ferry &middot; ${esc(f.name)}</div>
+        </div>
+        <div class="modal-actions"><button class="btn btn-primary" id="credOk">Done</button></div>`);
+      document.getElementById('credOk').addEventListener('click', closeModal);
+    } else toast('This ferry company already has a login. Use Reset password to issue a new one.');
+    if(VIEW.route === 'directory') renderMain();
+  }catch(e){ toast('Could not '+(mode==='create'?'create the login':'reset the password')+': '+(e.message||e)); }
+}
+
 // The two ferry companies live in the Ferry module, but people look for
 // "every operator" here — so the directory lists them too, read-only.
 const FERRY_DIRECTORY = [
-  { station:'Mersing', code:'MSG', company:'BISTARI GEMILANG TRAVEL SDN BHD', email:'bluewater_express@yahoo.com' },
-  { station:'Tanjung Gemok', code:'TGM', company:'BISTARI GEMILANG SHIPPING SDN BHD', email:'bluewaterexpress01@gmail.com' },
+  { key:'MERSING', station:'Mersing', code:'MSG', company:'BISTARI GEMILANG TRAVEL SDN BHD', email:'bluewater_express@yahoo.com' },
+  { key:'TG_GEMOK', station:'Tanjung Gemok', code:'TGM', company:'BISTARI GEMILANG SHIPPING SDN BHD', email:'bluewaterexpress01@gmail.com' },
 ];
 function adminDirectoryHtml(){
   let ops = STATE.operators.slice();
@@ -4016,25 +4129,49 @@ function adminDirectoryHtml(){
       ${!ops.length ? '<div class="empty">No operator matches this search.</div>' : ''}
     </div>`;
 
+  if(showFerry && !window.__ferryLoginsReq){ window.__ferryLoginsReq = true; loadFerryLogins().then(()=>{ if(VIEW.route === 'directory') renderMain(); }); }
+  const fRange = ferryRange();
   const ferryCard = !ferryRows.length ? '' : `
     <div class="card table-card" ${showBus?'style="margin-top:16px;"':''}>
       ${showBus ? '' : toolbar}
-      <div class="table-toolbar"><b style="font-size:13px;">Ferry — Mersing · Tanjung Gemok</b><span style="margin-left:auto; font-size:12.5px; color:var(--ink-faint);">accounts &amp; figures managed inside the Ferry module</span></div>
+      <div class="table-toolbar"><b style="font-size:13px;">Ferry — Mersing · Tanjung Gemok</b><span style="margin-left:auto; font-size:12.5px; color:var(--ink-faint);">${FERRY_LOADED ? '' : 'loading figures…'}</span></div>
       <div class="scrollx">
         <table>
+          <thead><tr>
+            <th style="text-align:left;">Operator</th><th>Terminal</th><th>Sales (period)</th><th>Net payout (period)</th><th>Status</th><th style="text-align:right;">Actions</th>
+          </tr></thead>
           <tbody>
-            ${ferryRows.map(f=>`
+            ${ferryRows.map(f=>{
+              const st = ferryStats(f.key, fRange);
+              const login = FERRY_LOGINS[f.key];
+              return `
               <tr>
                 <td style="text-align:left;">
                   <div class="op-row">
-                    <div class="op-badge" style="background:var(--accent-soft); color:var(--accent);">${initials(f.company)}</div>
-                    <div class="op-meta"><div class="name">${esc(f.company)}</div><div class="email">${esc(f.email)}</div></div>
+                    <div class="op-badge" style="background:var(--surface-2); color:var(--${FERRY_STATIONS[f.key].cssVar.slice(2)});">${initials(f.company)}</div>
+                    <div class="op-meta"><div class="name">${esc(f.company)}</div><div class="email">${esc(f.email)}${login ? '' : ' <span style="color:var(--warning);">· no login yet</span>'}</div></div>
                   </div>
                 </td>
                 <td><span class="pill pill-accent">${f.code}</span></td>
-                <td style="text-align:left; color:var(--ink-soft);">${esc(f.station)} ferry terminal</td>
-                <td style="text-align:right;"><button class="btn btn-sm" data-open-ferry="1">Open Ferry</button></td>
-              </tr>`).join('')}
+                <td class="num">${Math.abs(st.collection)<0.005?'<span class="dim">—</span>':fmtMoney(st.collection)}</td>
+                <td class="num" style="font-weight:650;">${Math.abs(st.net)<0.005?'<span class="dim">—</span>':fmtMoney(st.net)}</td>
+                <td>${login ? `<span class="pill pill-good" title="${login.last_sign_in_at ? 'Last sign-in '+esc(String(login.last_sign_in_at).slice(0,10)) : 'Has not signed in yet'}">Active</span>` : '<span class="pill pill-warn">No login</span>'}</td>
+                <td style="text-align:right;">
+                  <div class="row-actions">
+                    <button class="btn btn-sm" data-fdash="${f.key}">Dashboard</button>
+                    <button class="btn btn-sm" data-fstmt="${f.key}">Statement</button>
+                    <div class="menu-wrap">
+                      <button class="btn btn-sm" data-menu aria-label="More actions" title="More actions">⋯</button>
+                      <div class="menu">
+                        ${login
+                          ? `<button data-fact="reset" data-fstation="${f.key}">Reset password</button>`
+                          : `<button data-fact="create" data-fstation="${f.key}">Create login</button>`}
+                        <button data-open-ferry="1">Open Ferry module</button>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>`;}).join('')}
           </tbody>
         </table>
       </div>
@@ -4997,8 +5134,10 @@ function renderMain(){
     else if(VIEW.route === 'ferry'){
       // Ferry module (Mersing + Tanjung Gemok) is its own page, embedded so one login covers it.
       // Keep the iframe alive across re-renders so it never reloads/flickers.
-      if(main.querySelector('#ferryFrame')) return;
-      html = '<iframe id="ferryFrame" src="ferry/index.html?embed=1" title="Ferry" style="width:100%;height:100%;border:0;display:block;background:transparent"></iframe>';
+      const fsrc = ferryFrameSrc();
+      const cur = main.querySelector('#ferryFrame');
+      if(cur && cur.getAttribute('data-src') === fsrc) return;
+      html = '<iframe id="ferryFrame" data-src="'+fsrc+'" src="'+fsrc+'" title="Ferry" style="width:100%;height:100%;border:0;display:block;background:transparent"></iframe>';
     }
     else html = adminOverviewHtml();
   }
@@ -5292,7 +5431,15 @@ function wireMain(actor, effectiveOp){
     });
   });
 
-  document.querySelectorAll('[data-open-ferry]').forEach(b=> b.addEventListener('click', ()=>{ IMPORT_PREVIEW = null; VIEW.route = 'ferry'; renderShell(); }));
+  document.querySelectorAll('[data-open-ferry]').forEach(b=> b.addEventListener('click', ()=>{ IMPORT_PREVIEW = null; VIEW.ferryStation = null; VIEW.ferryPage = null; VIEW.route = 'ferry'; renderShell(); }));
+  document.querySelectorAll('[data-fdash]').forEach(b=> b.addEventListener('click', ()=>{ VIEW.ferryStation = b.dataset.fdash; VIEW.ferryPage = 'dash'; VIEW.route = 'ferry'; renderShell(); }));
+  document.querySelectorAll('[data-fstmt]').forEach(b=> b.addEventListener('click', ()=>{ VIEW.ferryStation = b.dataset.fstmt; VIEW.ferryPage = 'inv'; VIEW.route = 'ferry'; renderShell(); }));
+  document.querySelectorAll('[data-fact]').forEach(b=> b.addEventListener('click', ()=>{
+    document.querySelectorAll('.menu-wrap.open').forEach(w=>w.classList.remove('open'));
+    const st = b.dataset.fstation, mode = b.dataset.fact;
+    if(mode === 'reset' && !confirm('Issue a new temporary password for '+FERRY_STATIONS[st].company+'? Their current password stops working.')) return;
+    ferryLoginAction(st, mode);
+  }));
   document.querySelectorAll('[data-menu]').forEach(b=> b.addEventListener('click', (e)=>{
     e.stopPropagation();
     const wrap = b.closest('.menu-wrap'); const wasOpen = wrap.classList.contains('open');
@@ -7449,6 +7596,9 @@ window.addEventListener('resize', ()=>{
             VIEW.selectedOperatorId = op.id;
             try{ MY_OPERATORS = await GoStatementLive.loadMyOperators(); }catch(e){ MY_OPERATORS = []; }
           }
+        } else if(profile){
+          // A ferry company login: send it to its own single-station portal.
+          try{ const fst = await GoStatementLive.myFerryStation(); if(fst){ location.replace('ferry/index.html?mode=operator&station='+encodeURIComponent(fst)); return; } }catch(e){}
         }
       }
     }catch(err){ console.error('GoStatement Live: session restore failed', err); }

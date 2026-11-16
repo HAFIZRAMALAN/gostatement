@@ -181,7 +181,11 @@ body.embed main{padding:12px 4px 60px;max-width:none}body.embed{background:var(-
    ========================================================= */
 const SB_URL='https://lckfotvteyrzyasqmygh.supabase.co', SB_KEY='sb_publishable__f3XxH7pJU0ANmGE9RmvVg_Xpphi1n_';
 const STATIONS={MERSING:{name:'MERSING',cls:'mer'},TG_GEMOK:{name:'TANJUNG GEMOK',cls:'tg'}};
-const SK=Object.keys(STATIONS);
+const QS=new URLSearchParams(location.search);
+// Operator mode: a ferry company sees ONLY its own station, read-only (no upload / daily data / settings).
+const OPMODE=QS.get('mode')==='operator'&&['MERSING','TG_GEMOK'].includes(QS.get('station'));
+const OPST=OPMODE?QS.get('station'):null;
+let SK=OPMODE?[OPST]:Object.keys(STATIONS);
 const DEF_CFG={
   rates:{commission:2,sst:0.08,mdr:0.028,proc:0.03,payoutDays:7},
   supplier:{name:'NSS IT SOLUTION SDN BHD (964550-P)',sst:'W24-1808-31024948',tin:'C22697483090',reg:'964550-P [201101036416]',msic:'62099',email:'e-invoicing@gohub.com.my',
@@ -201,7 +205,7 @@ function mergeCfg(saved){
 let CFG=mergeCfg(load('gsf_cfg',null));CFG.ver=CFG_VER;
 let DATA=load('gsf_data',{});
 let DIRTY=new Set(load('gsf_dirty',[]));
-let UI={page:'dash',month:null,invMode:'daily',invStation:'BOTH',invDate:null,staged:null,session:null};
+let UI={page:({dash:'dash',inv:'inv',und:'und'})[QS.get('page')]||'dash',month:null,invMode:'daily',invStation:'BOTH',invDate:null,staged:null,session:null};
 let sb=null;
 /* follow the GoStatement theme (light / dark / system) when embedded */
 (function(){
@@ -253,7 +257,7 @@ function calc(rec){
   return{t,a,u,B,C,D,E,F,G,H,J,K,L,M,charges:r2(D+E+F+G+L)};
 }
 function sumCalc(list){const z={t:0,a:0,u:0,B:0,C:0,D:0,E:0,F:0,G:0,H:0,J:0,K:0,L:0,M:0,charges:0};for(const c of list)for(const k in z)z[k]=r2(z[k]+c[k]);return z}
-function rowsFor(station,from,to){const out=[];for(const k in DATA){const[s,d]=k.split('|');if(s===station&&d>=from&&d<=to)out.push({date:d,...calc(DATA[k])})}return out.sort((x,y)=>x.date<y.date?-1:1)}
+function rowsFor(station,from,to){if(OPMODE&&station!==OPST)return [];const out=[];for(const k in DATA){const[s,d]=k.split('|');if(s===station&&d>=from&&d<=to)out.push({date:d,...calc(DATA[k])})}return out.sort((x,y)=>x.date<y.date?-1:1)}
 function allDates(){return[...new Set(Object.keys(DATA).map(k=>k.split('|')[1]))].sort()}
 
 /* ---------- persistence ---------- */
@@ -426,7 +430,7 @@ function undSuggest(station,startFrom){
 function initSb(){
   try{sb=window.supabase.createClient(SB_URL,SB_KEY)}catch(e){sb=null;console.error(e)}
   if(!sb){setSync();return}
-  sb.auth.getSession().then(async({data})=>{UI.session=data.session;if(UI.session)await afterLogin();setSync();render()});
+  sb.auth.getSession().then(async({data})=>{UI.session=data.session;if(OPMODE&&!document.body.classList.contains('embed')&&!UI.session){location.replace('../app.html');return}if(UI.session)await afterLogin();setSync();render()});
   sb.auth.onAuthStateChange((ev,s)=>{UI.session=s;setSync()});
 }
 async function afterLogin(){
@@ -435,7 +439,7 @@ async function afterLogin(){
   await cloudPull();await undPull();setSync();startLive();
 }
 function openAuth(){
-  if(UI.session){sb.auth.signOut().then(()=>{UI.session=null;setSync();toast('Logged out')});return}
+  if(UI.session){sb.auth.signOut().then(()=>{UI.session=null;setSync();toast('Logged out');if(OPMODE&&!document.body.classList.contains('embed'))location.replace('../app.html')});return}
   $('#modalHost').innerHTML=`<div class="modal"><div><h2>Admin login (cloud)</h2><p class="sub">Use your GoStatement admin account.</p>
   <div class="grid" style="gap:10px"><label class="f">Email<input type="email" id="lgE" autocomplete="username"></label>
   <label class="f">Password<input type="password" id="lgP" autocomplete="current-password"></label>
@@ -620,53 +624,94 @@ function wireMonth(){const s=$('#selMonth');if(s)s.onchange=()=>{UI.month=s.valu
 function monthSum(station,ym){return sumCalc(rowsFor(station,ym+'-01',ym+'-31'))}
 
 /* ---------- daily summary ---------- */
-function daySum(iso){const per={};for(const s of SK)per[s]=sumCalc(rowsFor(s,iso,iso));return{per,all:sumCalc(SK.map(s=>per[s])),has:SK.filter(s=>DATA[keyOf(s,iso)])}}
+function selStations(){return OPMODE?SK:(UI.dayOp&&UI.dayOp!=='ALL'?[UI.dayOp]:SK)}
+function selLatest(){const sel=selStations();const d=Object.keys(DATA).filter(k=>sel.some(s=>k.startsWith(s+'|'))).map(k=>k.split('|')[1]).sort();return d.length?d[d.length-1]:allDates().slice(-1)[0]}
+function periodSum(from,to,sel){const per={};for(const s of sel)per[s]=sumCalc(rowsFor(s,from,to));return{per,all:sumCalc(sel.map(s=>per[s])),has:sel.filter(s=>rowsFor(s,from,to).length>0)}}
+function daySum(iso,sel){return periodSum(iso,iso,sel||SK)}
+function nDays(from,to){return Math.round((Date.parse(to+'T00:00:00Z')-Date.parse(from+'T00:00:00Z'))/864e5)+1}
 function deltaHtml(cur,prev,label){
   if(!prev)return `<span>${label}: —</span>`;
   const p=(cur-prev)/Math.abs(prev)*100;
-  // Comparing against a near-empty day (one station keyed in, the other not
-  // yet) gives nonsense like "+1450%" — show a dash instead of noise.
+  // Comparing against a near-empty period gives nonsense like "+1450%" — show a dash instead of noise.
   if(!isFinite(p)||Math.abs(p)>=400)return `<span>${label}: —</span>`;
   const cls=p>0.05?'up':p<-0.05?'down':'';
   return `<span class="${cls}">${p>0.05?'▲':p<-0.05?'▼':''} ${Math.abs(p).toFixed(1)}%</span> <span>${label}</span>`;
 }
 function daySummaryHtml(){
   const ds=allDates();if(!ds.length)return '';
-  if(!UI.dayPicked||!UI.day)UI.day=ds[ds.length-1]; // follow the newest day until someone picks one
-  const iso=UI.day,D=daySum(iso),P=daySum(addDays(iso,-1)),W=daySum(addDays(iso,-7));
-  const wd=DOWN[dow(iso)];
-  const status=!D.has.length?'<span class="pill warn">No data for this day</span>':D.has.length<SK.length?`<span class="pill warn">${STATIONS[D.has[0]].name} only</span>`:'<span class="pill ok">Both stations in</span>';
-  const kp=(l,v,cur,pv,wv)=>`<div><div class="l">${l}</div><div class="v">${v}</div><div class="d">${deltaHtml(cur,pv,'vs yesterday')}</div><div class="d">${deltaHtml(cur,wv,'vs last '+wd.slice(0,3))}</div></div>`;
-  const A=D.all;
+  const sel=selStations();
+  if(!UI.dayPicked||!UI.day)UI.day=selLatest(); // follow the newest day (for the chosen operator) until someone picks one
+  const mode=UI.dayMode==='range'?'range':'day';
+  let from,to,title,P,W,labP,labW=null;
+  if(mode==='day'){
+    from=to=UI.day;title=`${DOWN[dow(from)]}, ${dmy(from)}`;
+    P=periodSum(addDays(from,-1),addDays(from,-1),sel);W=periodSum(addDays(from,-7),addDays(from,-7),sel);
+    labP='vs yesterday';labW='vs last '+DOWN[dow(from)].slice(0,3);
+  }else{
+    to=UI.rTo||selLatest();from=UI.rFrom||addDays(to,-6);if(from>to){const x=from;from=to;to=x}
+    const n=nDays(from,to);title=`${dmy(from)} – ${dmy(to)} · ${n} day${n>1?'s':''}`;
+    P=periodSum(addDays(from,-n),addDays(from,-1),sel);W=null;labP=`vs previous ${n} day${n>1?'s':''}`;
+  }
+  const D=periodSum(from,to,sel),A=D.all;
+  const status=!D.has.length?'<span class="pill warn">No data</span>':(sel.length>1&&D.has.length<sel.length)?`<span class="pill warn">${STATIONS[D.has[0]].name} only</span>`:`<span class="pill ok">${sel.length>1?'Both stations in':STATIONS[sel[0]].name}</span>`;
+  const kp=(l,v,cur,pv,wv)=>`<div><div class="l">${l}</div><div class="v">${v}</div><div class="d">${deltaHtml(cur,pv,labP)}</div>${W?`<div class="d">${deltaHtml(cur,wv,labW)}</div>`:''}</div>`;
   const row=(name,S,cls)=>`<tr class="${cls||''}"><td>${name}</td><td>${fmtN(S.t)}</td><td class="opt">${fmt(S.a)}</td><td>${fmt(S.C)}</td><td class="opt">${fmtN(S.u)}</td><td class="opt">${fmt(S.charges)}</td><td>${fmt(S.M)}</td></tr>`;
-  // last 14 days ending on the selected day
-  const days=[];for(let i=13;i>=0;i--)days.push(addDays(iso,-i));
-  const vals=days.map(d=>daySum(d).all.C),mx=Math.max(...vals,1);
-  const chart=days.map((d,i)=>`<button data-day="${d}" class="${d===iso?'on':''}" title="${DOWN[dow(d)].slice(0,3)} ${dmy(d)} · RM ${fmt(vals[i])}"><div class="bar" style="height:${Math.max(2,vals[i]/mx*76)}px"></div><div class="lb">${+d.slice(8)}</div></button>`).join('');
-  // month to date
-  const ym=monthOf(iso),mtd=sumCalc(SK.map(s=>sumCalc(rowsFor(s,ym+'-01',iso))));
-  const mDays=ds.filter(d=>d>=ym+'-01'&&d<=iso);const avg=mDays.length?r2(mtd.C/mDays.length):0;
-  let best=null;for(const d of mDays){const c=daySum(d).all.C;if(!best||c>best.c)best={d,c}}
+  const label=k=>`<span class="${STATIONS[k].cls}">${STATIONS[k].name}</span>`;
+  // bars: last 14 days ending on the day (day mode) or every day of the range (max 62)
+  let days=[];
+  if(mode==='day'){for(let i=13;i>=0;i--)days.push(addDays(from,-i))}
+  else{for(let d=from;d<=to;d=addDays(d,1))days.push(d);if(days.length>62)days=days.slice(-62)}
+  const vals=days.map(d=>periodSum(d,d,sel).all.C),mx=Math.max(...vals,1);
+  const chart=days.map((d,i)=>`<button data-day="${d}" class="${mode==='day'&&d===from?'on':''}" title="${DOWN[dow(d)].slice(0,3)} ${dmy(d)} · RM ${fmt(vals[i])}"><div class="bar" style="height:${Math.max(2,vals[i]/mx*76)}px"></div><div class="lb">${+d.slice(8)}</div></button>`).join('');
+  // footer: month-to-date (day) or range stats
+  let foot;
+  if(mode==='day'){
+    const ym=monthOf(from),mtd=periodSum(ym+'-01',from,sel).all;
+    const mDays=ds.filter(d=>d>=ym+'-01'&&d<=from);const avg=mDays.length?r2(mtd.C/mDays.length):0;
+    let best=null;for(const d of mDays){const c=periodSum(d,d,sel).all.C;if(!best||c>best.c)best={d,c}}
+    foot=`<span>${monthLabel(ym)} to date: <b>RM ${fmt(mtd.C)}</b> collection</span><span><b>${fmtN(mtd.t)}</b> tickets</span><span>net <b>RM ${fmt(mtd.M)}</b></span><span>avg/day <b>RM ${fmt(avg)}</b></span>${best?`<span>best day <b>${dmy(best.d)}</b> (RM ${fmt(best.c)})</span>`:''}`;
+  }else{
+    const rd=ds.filter(d=>d>=from&&d<=to);const avg=rd.length?r2(A.C/rd.length):0;
+    let best=null;for(const d of rd){const c=periodSum(d,d,sel).all.C;if(!best||c>best.c)best={d,c}}
+    foot=`<span><b>${rd.length}</b> day(s) with sales</span><span>avg/day <b>RM ${fmt(avg)}</b></span><span>agent tickets <b>${fmtN(A.u)}</b></span>${best?`<span>best day <b>${dmy(best.d)}</b> (RM ${fmt(best.c)})</span>`:''}`;
+  }
+  const opSel=OPMODE?'':`<select id="dayOp" title="Operator"><option value="ALL" ${!UI.dayOp||UI.dayOp==='ALL'?'selected':''}>All operators</option>${Object.keys(STATIONS).map(k=>`<option value="${k}" ${UI.dayOp===k?'selected':''}>${STATIONS[k].name} · ${esc((CFG.stations[k].buyer||'').replace(/ SDN BHD.*$/i,''))}</option>`).join('')}</select>`;
+  const seg=`<div class="seg" id="dayMode"><button data-m="day" class="${mode==='day'?'on':''}">Day</button><button data-m="range" class="${mode==='range'?'on':''}">Custom range</button></div>`;
+  const ctl=mode==='day'
+   ?`<button class="ib" id="dayPrev" title="Previous day" aria-label="Previous day"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+   <input type="date" id="dayPick" value="${from}" min="${ds[0]}" max="${todayISO()}">
+   <button class="ib" id="dayNext" title="Next day" aria-label="Next day" ${from>=todayISO()?'disabled':''}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+   <button class="btn ghost sm" id="dayLatest" ${from===selLatest()?'disabled':''}>Latest</button>`
+   :`<input type="date" id="rFrom" value="${from}" min="${ds[0]}" max="${todayISO()}"><span class="sub" style="margin:0">to</span><input type="date" id="rTo" value="${to}" min="${ds[0]}" max="${todayISO()}">
+   <button class="btn ghost sm" data-rq="7">7 days</button><button class="btn ghost sm" data-rq="30">30 days</button><button class="btn ghost sm" data-rq="m">This month</button>`;
   return `<div class="card">
-  <div class="day-head"><div><h2>Daily summary</h2><p class="sub">${wd}, ${dmy(iso)} &nbsp;${status}</p></div>
-   <div class="day-ctl"><button class="ib" id="dayPrev" title="Previous day" aria-label="Previous day"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
-   <input type="date" id="dayPick" value="${iso}" min="${ds[0]}" max="${todayISO()}">
-   <button class="ib" id="dayNext" title="Next day" aria-label="Next day" ${iso>=todayISO()?'disabled':''}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
-   <button class="btn ghost sm" id="dayLatest" ${iso===ds[ds.length-1]?'disabled':''}>Latest</button></div></div>
-  <div class="day-kpis">${kp('Online collection',fmt(A.C),A.C,P.all.C,W.all.C)}${kp('Online tickets',fmtN(A.t),A.t,P.all.t,W.all.t)}${kp('NSS charges',fmt(A.charges),A.charges,P.all.charges,W.all.charges)}${kp('Net payable',fmt(A.M),A.M,P.all.M,W.all.M)}</div>
+  <div class="day-head"><div><h2>${mode==='day'?'Daily summary':'Period summary'}</h2><p class="sub">${title} &nbsp;${status}</p></div>
+   <div class="day-ctl" style="flex-wrap:wrap;justify-content:flex-end">${opSel}${seg}${ctl}</div></div>
+  <div class="day-kpis">${kp('Online collection',fmt(A.C),A.C,P.all.C,W&&W.all.C)}${kp('Online tickets',fmtN(A.t),A.t,P.all.t,W&&W.all.t)}${kp('NSS charges',fmt(A.charges),A.charges,P.all.charges,W&&W.all.charges)}${kp('Net payable',fmt(A.M),A.M,P.all.M,W&&W.all.M)}</div>
   <div class="tw" style="max-height:none"><table class="day-split"><thead><tr><th>Station</th><th>Tickets</th><th class="opt">Sales</th><th>Collection</th><th class="opt">Agent T.</th><th class="opt">Charges</th><th>Net payable</th></tr></thead><tbody>
-   ${row(`<span class="mer">MERSING</span>`,D.per.MERSING)}${row(`<span class="tg">TANJUNG GEMOK</span>`,D.per.TG_GEMOK)}${row('Total',A,'sum')}</tbody></table></div>
-  <div class="day-chart" role="group" aria-label="Online collection, last 14 days">${chart}</div>
-  <div class="day-foot"><span>${monthLabel(ym)} to date: <b>RM ${fmt(mtd.C)}</b> collection</span><span><b>${fmtN(mtd.t)}</b> tickets</span><span>net <b>RM ${fmt(mtd.M)}</b></span><span>avg/day <b>RM ${fmt(avg)}</b></span>${best?`<span>best day <b>${dmy(best.d)}</b> (RM ${fmt(best.c)})</span>`:''}</div>
+   ${sel.map(k=>row(label(k),D.per[k])).join('')}${sel.length>1?row('Total',A,'sum'):''}</tbody></table></div>
+  <div class="day-chart" role="group" aria-label="Online collection per day">${chart}</div>
+  <div class="day-foot">${foot}</div>
   </div>`;
 }
 function wireDash(){
-  const set=(d,pick=true)=>{if(!d)return;UI.day=d;UI.dayPicked=pick;UI.month=monthOf(d);render()};
+  const set=(d,pick=true)=>{if(!d)return;UI.day=d;UI.dayPicked=pick;UI.dayMode='day';UI.month=monthOf(d);render()};
   const p=$('#dayPick');if(p)p.onchange=()=>set(p.value);
   $('#dayPrev')&&($('#dayPrev').onclick=()=>set(addDays(UI.day,-1)));
   $('#dayNext')&&($('#dayNext').onclick=()=>set(addDays(UI.day,1)));
-  $('#dayLatest')&&($('#dayLatest').onclick=()=>{const ds=allDates();set(ds[ds.length-1],false)});
+  $('#dayLatest')&&($('#dayLatest').onclick=()=>set(selLatest(),false));
   document.querySelectorAll('.day-chart [data-day]').forEach(b=>b.onclick=()=>set(b.dataset.day));
+  const op=$('#dayOp');if(op)op.onchange=()=>{UI.dayOp=op.value;if(!UI.dayPicked)UI.day=null;render()};
+  document.querySelectorAll('#dayMode button').forEach(b=>b.onclick=()=>{
+    UI.dayMode=b.dataset.m;
+    if(UI.dayMode==='range'&&!UI.rTo){UI.rTo=selLatest();UI.rFrom=addDays(UI.rTo,-6)}
+    render()});
+  const rf=$('#rFrom'),rt=$('#rTo');
+  if(rf)rf.onchange=()=>{if(rf.value){UI.rFrom=rf.value;render()}};
+  if(rt)rt.onchange=()=>{if(rt.value){UI.rTo=rt.value;render()}};
+  document.querySelectorAll('[data-rq]').forEach(b=>b.onclick=()=>{
+    const last=selLatest(),q=b.dataset.rq;
+    UI.rTo=last;UI.rFrom=q==='7'?addDays(last,-6):q==='30'?addDays(last,-29):last.slice(0,8)+'01';render()});
 }
 
 function pageDash(){
@@ -678,7 +723,7 @@ function pageDash(){
   ${daySummaryHtml()}
   <h2 style="margin:22px 0 10px">Month overview · ${monthLabel(ym)}</h2>
   <div class="grid g4">${kpi('Online collection',fmt(all.C),`sales ${fmt(all.a)} + 3% fee ${fmt(all.B)}`)}${kpi('Online tickets',fmtN(all.t),`+ ${fmtN(all.u)} agent tickets`)}${kpi('NSS invoice total',fmt(all.charges),'commission + MDR + agent, incl. SST')}${kpi('Net payable to operators',fmt(all.M),'after all deductions')}</div>
-  <div class="grid g2">${stCard('MERSING',M)}${stCard('TG_GEMOK',T)}</div>
+  <div class="grid ${OPMODE?'':'g2'}">${SK.includes('MERSING')?stCard('MERSING',M):''}${SK.includes('TG_GEMOK')?stCard('TG_GEMOK',T):''}</div>
   ${allDates().length?'':'<div class="card"><b>No data yet.</b> Go to <b>Upload Excel</b> and drop the SUMMARY SALES file — it will read, save and be ready for invoices straight away.</div>'}`;
 }
 
@@ -763,7 +808,7 @@ function pageInv(){
   return `<div class="top"><div><h1>Invoices</h1><p class="sub">NSS e-invoice format · generated from the saved daily data. Print → “Save as PDF”.</p></div></div>
   <div class="card"><div class="row" style="align-items:flex-end;gap:14px">
    <div><div class="sub" style="margin:0 0 4px;font-size:12px">Type</div><div class="seg" id="segMode">${['daily','weekly','monthly','custom'].map(m=>`<button data-m="${m}" class="${UI.invMode===m?'on':''}">${m[0].toUpperCase()+m.slice(1)}</button>`).join('')}</div></div>
-   <label class="f">Station<select id="invSt"><option value="BOTH" ${UI.invStation==='BOTH'?'selected':''}>Both (2 invoices)</option><option value="MERSING" ${UI.invStation==='MERSING'?'selected':''}>Mersing</option><option value="TG_GEMOK" ${UI.invStation==='TG_GEMOK'?'selected':''}>Tanjung Gemok</option></select></label>
+   ${OPMODE?`<label class="f">Station<select id="invSt"><option value="${OPST}" selected>${STATIONS[OPST].name}</option></select></label>`:`<label class="f">Station<select id="invSt"><option value="BOTH" ${UI.invStation==='BOTH'?'selected':''}>Both (2 invoices)</option><option value="MERSING" ${UI.invStation==='MERSING'?'selected':''}>Mersing</option><option value="TG_GEMOK" ${UI.invStation==='TG_GEMOK'?'selected':''}>Tanjung Gemok</option></select></label>`}
    ${dateRow}<button class="btn" id="btnGen">Generate</button></div>
    <p class="sub" style="margin:10px 0 0">Period: <b>${esc(p.label)}</b></p></div>
   <div class="card"><h2>Batch</h2><div class="row"><button class="btn ghost" id="btnBatchMonth">All daily invoices for ${monthLabel(UI.month||UI.invDate.slice(0,7))} (${monthsDaysCount()} days)</button><span class="sub" style="margin:0">One PDF with a page per day per station.</span></div></div>
@@ -810,7 +855,7 @@ function pageSet(){
   const st=s=>{const c=CFG.stations[s];return `<div class="card"><h2 class="${STATIONS[s].cls}">${STATIONS[s].name} — buyer & payee</h2><div class="grid g2">${f(`stations.${s}.buyer`,'Buyer name',c.buyer)}${f(`stations.${s}.email`,'Buyer email',c.email,'email')}${f(`stations.${s}.tin`,'Buyer TIN',c.tin)}${f(`stations.${s}.reg`,'Buyer registration no.',c.reg)}${f(`stations.${s}.addr`,'Buyer address',c.addr)}${f(`stations.${s}.contact`,'Buyer contact no.',c.contact)}${f(`stations.${s}.prefix`,'Invoice no. prefix',c.prefix)}${f(`stations.${s}.payee`,'Payment label',c.payee)}${f(`stations.${s}.bank`,'Bank',c.bank)}${f(`stations.${s}.acc`,'Account no.',c.acc)}</div></div>`};
   return `<div class="top"><div><h1>Settings</h1><p class="sub">Rates apply to all stations and all months (recalculated live). Blank buyer TIN/address will print “-” until you fill them.</p></div><button class="btn" id="btnSaveCfg">Save settings</button></div>
   <div class="card"><h2>Rates</h2><div class="grid g4">${f('rates.commission','Commission RM / ticket',R.commission,'number')}${f('rates.sst','SST (0.08 = 8%)',R.sst,'number')}${f('rates.mdr','MDR (0.028 = 2.8%)',R.mdr,'number')}${f('rates.proc','Processing fee (0.03 = 3%)',R.proc,'number')}${f('rates.payoutDays','Payout days after period end',R.payoutDays,'number')}</div></div>
-  ${st('MERSING')}${st('TG_GEMOK')}
+  ${SK.map(st).join('')}
   <div class="card"><h2>Supplier (NSS)</h2><div class="grid g2">${f('supplier.name','Name',P.name)}${f('supplier.tin','TIN',P.tin)}${f('supplier.reg','Registration no.',P.reg)}${f('supplier.sst','SST ID',P.sst)}${f('supplier.email','E-invoice email',P.email,'email')}${f('supplier.addr','Address',P.addr)}${f('supplier.tel','Tel/Fax',P.tel)}${f('supplier.bankName','Bank',P.bankName)}${f('supplier.bankAcc','Account no.',P.bankAcc)}${f('supplier.bankHolder','Account name',P.bankHolder)}</div></div>
   <div class="card"><h2>Backup</h2><div class="row"><button class="btn ghost" id="btnExp">Download backup (JSON)</button><label class="btn ghost" style="cursor:pointer">Restore backup<input type="file" id="fileRestore" accept=".json" class="hide"></label><span class="sub" style="margin:0">${Object.keys(DATA).length} station-days stored.</span></div></div>`;
 }
@@ -833,7 +878,7 @@ function pageUnd(){
    <div class="row"><label class="btn ghost" style="cursor:pointer">Import UNDERSALES Excel<input type="file" id="undFile" accept=".xlsx,.xls" class="hide"></label><button class="btn ghost" id="undExport">⬇ Export Excel</button></div></div>
   <div class="card"><h2>Suggest from daily data</h2><p class="sub" style="margin:0 0 8px">Tue/Wed/Thu settle on their own day; Fri+Sat+Sun+Mon settle together on Monday (this reproduces your Mersing Excel exactly). Days already in the tracker are skipped. Review before adding.</p>
    <div class="row" style="align-items:flex-end"><label class="f">Track from (first batch day)<input type="date" id="undStart" value="${start}"></label><button class="btn" id="undSug">Find undersales / recoveries</button></div><div id="undSugOut"></div></div>
-  ${card('MERSING')}${card('TG_GEMOK')}`;
+  ${SK.map(card).join('')}`;
 }
 function wireUnd(){
   const q=x=>document.querySelector(x);
@@ -871,8 +916,10 @@ function wireUnd(){
 /* ---------- shell ---------- */
 function go(p){UI.page=p;render()}
 function render(){
+  if(OPMODE){if(['data','up','set'].includes(UI.page))UI.page='dash';UI.invStation=OPST}
   ensureMonth();
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===UI.page));
+  if(OPMODE)document.querySelectorAll('#nav button').forEach(b=>{if(['data','up','set'].includes(b.dataset.p))b.classList.add('hide')});
   const m=$('#main');
   m.innerHTML={dash:pageDash,data:pageData,up:pageUp,und:pageUnd,inv:pageInv,set:pageSet}[UI.page]();
   wireMonth();
@@ -882,6 +929,7 @@ function render(){
 }
 $('#nav').onclick=e=>{const b=e.target.closest('button');if(b)go(b.dataset.p)};
 $('#btnAuth').onclick=openAuth;
+if(OPMODE){const sm=document.querySelector('.brand small');if(sm)sm.textContent=CFG.stations[OPST].buyer}
 render();initSb();
 </script>
 </body>
