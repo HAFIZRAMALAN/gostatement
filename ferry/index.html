@@ -187,16 +187,16 @@ const OPMODE=QS.get('mode')==='operator'&&['MERSING','TG_GEMOK'].includes(QS.get
 const OPST=OPMODE?QS.get('station'):null;
 let SK=OPMODE?[OPST]:Object.keys(STATIONS);
 const DEF_CFG={
-  rates:{commission:2,sst:0.08,mdr:0.028,proc:0.03,payoutDays:7},
+  rates:{commission:2,sst:0.08,mdr:0.028,proc:0.03,payoutDays:7,salesSst:0},
   supplier:{name:'NSS IT SOLUTION SDN BHD (964550-P)',sst:'W24-1808-31024948',tin:'C22697483090',reg:'964550-P [201101036416]',msic:'62099',email:'e-invoicing@gohub.com.my',
     addr:'UNIT 11-G-01, CORPORATE PARK, STAR CENTRAL, LINGKARAN CYBER POINT TIMUR, CYBER 12, 63000 CYBERJAYA, SELANGOR.',tel:'Tel: +603-8322 7555 Fax: +603-8322 7666',
     bankName:'Maybank Islamic Berhad',bankAcc:'562142422721',bankHolder:'NSS IT Solution Sdn. Bhd.'},
   stations:{
-    MERSING:{buyer:'BISTARI GEMILANG TRAVEL SDN BHD (MERSING)',email:'bluewater_express@yahoo.com',tin:'C24668842040',reg:'201601031061',addr:'W1 & W2 MERSING HARBOUR CENTER, MERSING, JOHOR',contact:'+60137440207',prefix:'FRY-MSG',payee:'PAYMENT BOOKING MERSING',bank:'Public Bank',acc:'3196121409'},
-    TG_GEMOK:{buyer:'BISTARI GEMILANG SHIPPING SDN BHD (TANJUNG GEMOK)',email:'bluewaterexpress01@gmail.com',tin:'C24737250010',reg:'200701037479',addr:'W1 & W2 MERSING HARBOUR CENTER, MERSING, JOHOR',contact:'+60137440207',prefix:'FRY-TGM',payee:'PAYMENT BOOKING TG GEMUK',bank:'Public Bank',acc:'3813442824'}
+    MERSING:{buyer:'BISTARI GEMILANG TRAVEL SDN BHD (MERSING)',email:'bluewater_express@yahoo.com',tin:'C24668842040',reg:'201601031061',addr:'W1 & W2 MERSING HARBOUR CENTER, MERSING, JOHOR',contact:'+60137440207',sst:'',prefix:'FRY-MSG',salesPrefix:'BG-MSG',payee:'PAYMENT BOOKING MERSING',bank:'Public Bank',acc:'3196121409'},
+    TG_GEMOK:{buyer:'BISTARI GEMILANG SHIPPING SDN BHD (TANJUNG GEMOK)',email:'bluewaterexpress01@gmail.com',tin:'C24737250010',reg:'200701037479',addr:'W1 & W2 MERSING HARBOUR CENTER, MERSING, JOHOR',contact:'+60137440207',sst:'',prefix:'FRY-TGM',salesPrefix:'BG-TGM',payee:'PAYMENT BOOKING TG GEMUK',bank:'Public Bank',acc:'3813442824'}
   }
 };
-const CFG_VER=3; // bump when defaults change (e.g. real buyer TIN/reg/address from the Oct invoices) so stale saved copies don't hide them
+const CFG_VER=4; // bump when defaults change (e.g. real buyer TIN/reg/address from the Oct invoices) so stale saved copies don't hide them
 function mergeCfg(saved){
   const base=JSON.parse(JSON.stringify(DEF_CFG));
   if(!saved||saved.ver!==CFG_VER)return base;   // old/unversioned saved settings are replaced by the new defaults
@@ -205,7 +205,7 @@ function mergeCfg(saved){
 let CFG=mergeCfg(load('gsf_cfg',null));CFG.ver=CFG_VER;
 let DATA=load('gsf_data',{});
 let DIRTY=new Set(load('gsf_dirty',[]));
-let UI={page:({dash:'dash',inv:'inv',und:'und'})[QS.get('page')]||'dash',month:null,invMode:'daily',invStation:'BOTH',invDate:null,staged:null,session:null};
+let UI={invDoc:'nss',page:({dash:'dash',inv:'inv',und:'und'})[QS.get('page')]||'dash',month:null,invMode:'daily',invStation:'BOTH',invDate:null,staged:null,session:null};
 let sb=null;
 /* follow the GoStatement theme (light / dark / system) when embedded */
 (function(){
@@ -602,15 +602,70 @@ function attachmentHtml(v,U,dt){
   <tr class="t"><td>TOTAL</td><td>${fmtN(S.t)}</td><td>${fmt(S.a)}</td><td>${fmt(S.C)}</td><td>${fmt(r2(S.D+S.E))}</td><td>${fmt(r2(S.F+S.G))}</td><td>${fmtN(S.u)}</td><td>${fmt(S.L)}</td><td>${fmt(S.M)}</td></tr></tbody></table>
   <div class="pg">Page 2 of 2</div></section>`;
 }
+function buildSalesInvoice(station,mode,p){
+  const rows=rowsFor(station,p.from,p.to);if(!rows.length)return null;
+  const S=sumCalc(rows),R=CFG.rates,C=CFG.stations[station];
+  const stn=STATIONS[station].name;const nm=stn.split(' ').map(w=>w[0]+w.slice(1).toLowerCase()).join(' ');
+  const dd=iso=>iso.split('-').reverse().join('.');
+  const br=p.from===p.to?`[${dd(p.from)}]`:`[${dd(p.from)}-${dd(p.to)}]`;
+  // Bluewater's OWN ticket sales. SST on ferry passenger transport is exempt by default (rates.salesSst=0).
+  const rate=+R.salesSst||0;
+  const excl=r2(S.a), tax=r2(excl*rate), incl=r2(excl+tax);
+  const pre=(C.salesPrefix||('BG-'+station.slice(0,3)));
+  const c=x=>x.replace(/-/g,'');
+  const no=mode==='daily'?`${pre}-${c(p.from)}`:mode==='weekly'?`${pre}-W${c(p.from)}`:mode==='monthly'?`${pre}-M${c(p.from).slice(0,6)}`:`${pre}-${c(p.from)}-${c(p.to)}`;
+  const lines=[{d:`Ferry Ticket Sales (Online) - ${nm} ${br}`,qty:S.t,tot:excl,tax:r2(excl*rate)}];
+  return{doc:'sales',station,mode,p,rows,S,C,stn,nm,no,rate,excl,tax,incl,lines,showAnnex:mode!=='daily'&&rows.length>1};
+}
+function invHeadCo(C,sstId){
+  const name=String(C.buyer).replace(/\s*\([^)]*\)\s*$/,'');
+  return `<div class="hd"><div class="co" style="width:100%"><div class="nm">${esc(name)}</div><div>${esc(C.addr||'')}</div><div><b>TIN :</b> ${esc(C.tin||'-')} &nbsp; <b>Reg. No :</b> ${esc(C.reg||'-')}</div><div>${sstId?'<b>SST ID :</b> '+esc(sstId)+' &nbsp; ':''}<b>Tel :</b> ${esc(C.contact||'-')} &nbsp; <b>Email :</b> ${esc(C.email||'-')}</div></div></div>`;
+}
+function salesInvoiceHtml(v){
+  const{S,C}=v;const n=new Date(),dt=`${dmy(todayISO())} ${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
+  const sstPct=(v.rate*100).toFixed(0);
+  const exempt=v.rate<=0;
+  const twoPage=v.showAnnex;
+  const page1=`<section class="inv">${invHeadCo(C,C.sst)}
+  <div class="blk"><div><div class="ein">SALES INVOICE</div><div class="kv">${kvHtml([['Invoice No.',`<b>${esc(v.no)}</b>`],['Invoice Date and Time',dt],['Sales Period',esc(v.p.label)],['Currency Code','MYR']])}</div></div>
+   <div class="kv">${kvHtml([['Bill To','<b>CASH SALES - ONLINE &amp; COUNTER</b>'],['Buyer TIN','EI00000000010'],['Description','General public (consolidated ticket sales)'],['Page',twoPage?'1 of 2':'1 of 1']])}</div></div>
+  <table class="it"><thead><tr><th class="l" style="width:6%">ITEM</th><th style="width:10%">CLASSIFICATION</th><th>DESCRIPTION</th><th style="width:11%">QUANTITY<br>(tickets)</th><th style="width:13%">AMOUNT<br>(RM)</th><th style="width:12%">SERVICE TAX<br>(${sstPct}%)</th><th style="width:13%" class="r">TOTAL<br>(RM)</th></tr></thead><tbody>
+   ${v.lines.map((l,i)=>`<tr><td>${i+1}.</td><td class="c">022</td><td>${esc(l.d)}</td><td class="c">${fmtN(l.qty)}</td><td class="r">${fmt(l.tot)}</td><td class="r">${exempt?'Exempt':fmt(l.tax)}</td><td class="r">${fmt(r2(l.tot+l.tax))}</td></tr>`).join('')}
+  </tbody></table>
+  <div class="grow"></div>
+  <div class="tot"><div>${esc(words(v.incl))}</div><table>
+   <tr><td>TOTAL EXCL. TAX (RM)</td><td class="b">${fmt(v.excl)}</td></tr>
+   <tr><td>SERVICE TAX ${exempt?'(exempt)':'@ '+sstPct+'%'}</td><td class="b">${fmt(v.tax)}</td></tr>
+   <tr><td>TOTAL INCL. TAX (RM)</td><td class="b">${fmt(v.incl)}</td></tr></table></div>
+  <div class="notes"><div>Notes :<br>1. Payment received via online booking / counter and the payment gateway.
+   <div class="bank"><span>Account Name</span><span>:</span><b>${esc(C.buyer)}</b><span>Banker Name</span><span>:</span><b>${esc(C.bank||'-')}</b><span>Account Number</span><span>:</span><b>${esc(C.acc||'-')}</b></div>
+   2. Ferry passenger transport ${exempt?'is exempt from service tax':'service tax at '+sstPct+'%'}.<br>3. This document summarises ferry ticket sales for the period stated.${twoPage?'<br>4. Daily breakdown is in the attachment (page 2).':''}</div>
+   <div class="qr"><div></div>Ticket sales summary</div></div>
+  <div class="pg">Page ${twoPage?'1 of 2':'1 of 1'}</div></section>`;
+  if(!twoPage)return page1;
+  const rows=v.rows;
+  const page2=`<section class="inv">${invHeadCo(C,C.sst)}
+  <div class="blk"><div class="kv">${kvHtml([['Invoice Ref.',esc(v.no)],['Station',esc(v.stn)],['Sales Period',esc(v.p.label)]])}</div>
+   <div class="kv">${kvHtml([['Invoice Date',dt.split(' ')[0]],['Page','2 of 2']])}</div></div>
+  <h3>ATTACHMENT - DAILY SALES BREAKDOWN</h3>
+  <div class="note">Supporting detail for sales invoice ${esc(v.no)}. All amounts in RM.</div>
+  <table class="an"><thead><tr><th>Date</th><th>Online Tickets</th><th>Ticket Sales</th><th>Agent Tickets</th><th>Total Tickets</th></tr></thead><tbody>
+  ${rows.map(r=>`<tr><td>${dmy(r.date)} ${DOWN[dow(r.date)].slice(0,3)}</td><td>${fmtN(r.t)}</td><td>${fmt(r.a)}</td><td>${fmtN(r.u)}</td><td>${fmtN(r.t+r.u)}</td></tr>`).join('')}
+  <tr class="t"><td>TOTAL</td><td>${fmtN(S.t)}</td><td>${fmt(S.a)}</td><td>${fmtN(S.u)}</td><td>${fmtN(S.t+S.u)}</td></tr></tbody></table>
+  <div class="pg">Page 2 of 2</div></section>`;
+  return page1+page2;
+}
 function genInvoices(station,mode,date,customTo){
+
   const out=[];const sts=station==='BOTH'?SK:[station];
   const p=mode==='custom'?{from:date,to:customTo,label:`${dmy(date)} - ${dmy(customTo)}`}:periodFor(mode,date);
-  for(const s of sts){const v=buildInvoice(s,mode,p);if(v)out.push(v)}
+  const build=UI.invDoc==='sales'?buildSalesInvoice:buildInvoice;
+  for(const s of sts){const v=build(s,mode,p);if(v)out.push(v)}
   return out;
 }
 function showInvoices(list){
   if(!list.length){toast('No sales data for that period.');return}
-  $('#invoiceHost').innerHTML=list.map(invoiceHtml).join('');$('#invoiceHostWrap').classList.remove('hide');UI.invList=list;
+  $('#invoiceHost').innerHTML=list.map(v=>v.doc==='sales'?salesInvoiceHtml(v):invoiceHtml(v)).join('');$('#invoiceHostWrap').classList.remove('hide');UI.invList=list;
   $('#invBar')&&($('#invBar').classList.remove('hide'));
   renderInvPreview();
   setTimeout(()=>$('#invoiceHostWrap').scrollIntoView({behavior:'smooth',block:'start'}),50);
@@ -805,9 +860,12 @@ function wireUp(){
 function pageInv(){
   const dateRow=UI.invMode==='custom'?`<label class="f">From<input type="date" id="invFrom" value="${UI.invDate}"></label><label class="f">To<input type="date" id="invTo" value="${UI.invTo||UI.invDate}"></label>`:`<label class="f">${UI.invMode==='monthly'?'Any date in month':UI.invMode==='weekly'?'Any date in week':'Date'}<input type="date" id="invDate" value="${UI.invDate}"></label>`;
   const p=UI.invMode==='custom'?{label:`${dmy(UI.invDate)} - ${dmy(UI.invTo||UI.invDate)}`}:periodFor(UI.invMode,UI.invDate);
-  return `<div class="top"><div><h1>Invoices</h1><p class="sub">NSS e-invoice format · generated from the saved daily data. Print → “Save as PDF”.</p></div></div>
-  <div class="card"><div class="row" style="align-items:flex-end;gap:14px">
-   <div><div class="sub" style="margin:0 0 4px;font-size:12px">Type</div><div class="seg" id="segMode">${['daily','weekly','monthly','custom'].map(m=>`<button data-m="${m}" class="${UI.invMode===m?'on':''}">${m[0].toUpperCase()+m.slice(1)}</button>`).join('')}</div></div>
+  const isSales=UI.invDoc==='sales';
+  return `<div class="top"><div><h1>Invoices</h1><p class="sub">${isSales?'Ferry ticket SALES invoice (issued by the ferry company) — generated from the saved daily data.':'NSS settlement e-invoice (charges billed to the ferry company).'} Print → “Save as PDF”.</p></div></div>
+  <div class="card"><div class="row" style="align-items:flex-end;gap:14px;margin-bottom:12px">
+   <div><div class="sub" style="margin:0 0 4px;font-size:12px">Document</div><div class="seg" id="segDoc"><button data-d="nss" class="${!isSales?'on':''}">NSS charges</button><button data-d="sales" class="${isSales?'on':''}">Ticket sales (ferry co.)</button></div></div></div>
+  <div class="row" style="align-items:flex-end;gap:14px">
+   <div><div class="sub" style="margin:0 0 4px;font-size:12px">Period</div><div class="seg" id="segMode">${['daily','weekly','monthly','custom'].map(m=>`<button data-m="${m}" class="${UI.invMode===m?'on':''}">${m[0].toUpperCase()+m.slice(1)}</button>`).join('')}</div></div>
    ${OPMODE?`<label class="f">Station<select id="invSt"><option value="${OPST}" selected>${STATIONS[OPST].name}</option></select></label>`:`<label class="f">Station<select id="invSt"><option value="BOTH" ${UI.invStation==='BOTH'?'selected':''}>Both (2 invoices)</option><option value="MERSING" ${UI.invStation==='MERSING'?'selected':''}>Mersing</option><option value="TG_GEMOK" ${UI.invStation==='TG_GEMOK'?'selected':''}>Tanjung Gemok</option></select></label>`}
    ${dateRow}<button class="btn" id="btnGen">Generate</button></div>
    <p class="sub" style="margin:10px 0 0">Period: <b>${esc(p.label)}</b></p></div>
@@ -827,12 +885,14 @@ function renderInvPreview(){
   const mb=$('#mailBtns');if(mb)mb.innerHTML=list.length<=4?list.map(v=>`<a class="btn ghost" style="text-decoration:none" href="${mailto(v)}">Email ${esc(STATIONS[v.station].name)}</a>`).join(''):'';
 }
 function mailto(v){
+  if(v.doc==='sales'){const sub=encodeURIComponent(`Sales Invoice ${v.no} — ${v.stn} (${v.p.label})`);const body=encodeURIComponent(`Please find the ferry ticket sales invoice ${v.no} for ${v.stn}, period ${v.p.label}.\n\nTicket sales (RM): ${fmt(v.excl)}\nTotal incl. tax (RM): ${fmt(v.incl)}\n\nRegards,\n${v.C.buyer}`);return `mailto:${v.C.email}?subject=${sub}&body=${body}`;}
   const sub=encodeURIComponent(`Settlement Invoice ${v.no} — ${v.stn} (${v.p.label})`);
   const body=encodeURIComponent(`Dear ${v.C.buyer},\n\nPlease find attached the settlement e-invoice ${v.no} for ${v.stn}, period ${v.p.label}.\n\nOnline collection: RM ${fmt(v.S.C)}\nNSS charges (incl. SST): RM ${fmt(v.incl)}\nNet payable: RM ${fmt(v.S.M)}\nPayout date: ${dmy(v.payout)}\n\nRegards,\nNSS IT Solution Sdn Bhd`);
   return `mailto:${v.C.email}?subject=${sub}&body=${body}`;
 }
 function wireInv(){
   const q=s=>document.querySelector(s);
+  const sd=q('#segDoc');if(sd)sd.onclick=e=>{const b=e.target.closest('button');if(b){UI.invDoc=b.dataset.d;render()}};
   q('#segMode').onclick=e=>{const b=e.target.closest('button');if(b){UI.invMode=b.dataset.m;render()}};
   q('#invSt').onchange=e=>UI.invStation=e.target.value;
   if(q('#invDate'))q('#invDate').onchange=e=>{UI.invDate=e.target.value;render()};
